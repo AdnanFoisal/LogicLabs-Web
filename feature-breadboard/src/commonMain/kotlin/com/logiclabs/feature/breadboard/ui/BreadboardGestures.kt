@@ -133,6 +133,8 @@ fun Modifier.breadboardGestures(
     ) {
         var lastChipClickId: String? = null
         var lastChipClickTimeMs = 0L
+        var lastEmptyTapTimeMs = 0L
+        var lastEmptyTapPos = Offset.Zero
 
         awaitEachGesture {
             val downEvent = awaitPointerEvent()
@@ -232,7 +234,18 @@ fun Modifier.breadboardGestures(
                 else -> panZoomOrSelect(
                     state, mapper, hitTester, circuit, density, down, boardDown,
                     hitWire, hitChip, isWireModeActive, isWireSelectMode, selectedWireId,
-                    selectedChipId, dragSlop, activeWireColor, defaultWireManhattan, callbacks
+                    selectedChipId, dragSlop, activeWireColor, defaultWireManhattan, callbacks,
+                    onEmptyTap = { tapPos ->
+                        val now = com.logiclabs.core.bridge.platform.currentTimeMillis()
+                        val closeInSpace = (tapPos - lastEmptyTapPos).getDistance() <= 36f * density
+                        if (now - lastEmptyTapTimeMs <= 360L && closeInSpace) {
+                            lastEmptyTapTimeMs = 0L
+                            state.toggleQuickZoomAt(tapPos, mapper, circuit)
+                        } else {
+                            lastEmptyTapTimeMs = now
+                            lastEmptyTapPos = tapPos
+                        }
+                    }
                 )
             }
         }
@@ -532,7 +545,8 @@ private suspend fun AwaitPointerEventScope.panZoomOrSelect(
     dragSlop: Float,
     activeWireColor: WireColor,
     defaultWireManhattan: Boolean,
-    callbacks: BreadboardGestureCallbacks
+    callbacks: BreadboardGestureCallbacks,
+    onEmptyTap: ((Offset) -> Unit)? = null
 ) {
     var lastPos = down.position
     var travelled = 0f
@@ -601,6 +615,9 @@ private suspend fun AwaitPointerEventScope.panZoomOrSelect(
         else -> {
             callbacks.onWireSelected(null)
             callbacks.onChipSelected(null)
+            if (!isWireModeActive && !isWireSelectMode) {
+                onEmptyTap?.invoke(lastPos)
+            }
         }
     }
     state.clearDraft()

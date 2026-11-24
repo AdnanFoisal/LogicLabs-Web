@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
@@ -43,15 +44,15 @@ import com.logiclabs.core.designsystem.theme.TextSecondary
 
 private data class ControlRow(val keys: String, val action: String)
 
-private val MouseControls = listOf(
-    ControlRow("Scroll Wheel", "Zoom in / out smoothly toward mouse pointer"),
-    ControlRow("Middle / Space+Drag", "Pan the breadboard in any mode"),
-    ControlRow("Left-Drag Board", "Pan the breadboard in Roam / Select mode"),
-    ControlRow("Click / Drag (Wire)", "Click hole A then hole B, or click-drag to connect"),
-    ControlRow("Right-Click", "Context menu on chip/wire/board — or cancel wire"),
+private val PointerAndTouchControls = listOf(
+    ControlRow("Pinch / Scroll", "Two-finger pinch (phone/trackpad) or mouse wheel zooms smoothly"),
+    ControlRow("Double-Tap Empty", "Toggle 2.2x inspection zoom <-> 100% Fit at tap location"),
+    ControlRow("Middle / Space+Drag", "Pan the breadboard in any mode (or 1-finger drag in Roam)"),
+    ControlRow("Click / Tap (Wire)", "Tap hole A then hole B, or drag hole-to-hole to route jumper"),
+    ControlRow("Right-Click", "Context menu on chip/wire/board — or cancel armed wire"),
     ControlRow("Drag IC / Endpoint", "Move placed IC across columns, or re-terminate wire"),
-    ControlRow("Double-Click IC", "Open live IC Pinout & Truth Table Inspector"),
-    ControlRow("Hold Alt (or L)", "Show 2.2x optical magnifying loupe at cursor")
+    ControlRow("Double-Click/Tap IC", "Open live IC Pinout & Truth Table Inspector"),
+    ControlRow("Hold Alt (or L)", "Show 2.2x optical magnifying loupe at pointer")
 )
 
 private val BreadboardHotkeys = listOf(
@@ -62,8 +63,8 @@ private val BreadboardHotkeys = listOf(
     ControlRow("Arrow Keys", "Nudge selected IC (or pan board when idle)"),
     ControlRow("Delete / Backspace", "Delete selected wire or IC"),
     ControlRow("Ctrl + Z / Ctrl + Y", "Multi-step Undo / Redo"),
-    ControlRow("F  or  0", "Fit circuit / breadboard to screen"),
-    ControlRow("+  /  -  /  L", "Zoom in / Zoom out / Toggle 2.2x loupe")
+    ControlRow("F  or  0", "Fit circuit / breadboard to screen (also Ctrl+0)"),
+    ControlRow("+ / - (or Ctrl +/-)", "Zoom in / Zoom out · L toggles 2.2x loupe")
 )
 
 private val ConsoleHotkeys = listOf(
@@ -76,20 +77,20 @@ private val ConsoleHotkeys = listOf(
 )
 
 private val WorkspaceHotkeys = listOf(
-    ControlRow("C", "Open 74xx IC Chip Catalog (type, ↑/↓ + Enter)"),
-    ControlRow("B", "Open Guided Lab Coursework Catalog (49 builds)"),
-    ControlRow("O", "Open Dual-Channel CRT Oscilloscope"),
-    ControlRow("D", "Toggle Live Gate-Level Boolean Schematic"),
+    ControlRow("C  /  B", "Open 74xx IC Catalog [C] or 49 Guided Labs [B]"),
+    ControlRow("O  /  D", "Dual-Channel CRT Oscilloscope [O] · Live Schematic [D]"),
     ControlRow("F5", "Run Exhaustive 2^N Truth-Table Verification"),
-    ControlRow("Ctrl + S / O / E", "Save / Import / Export Project (.json)"),
+    ControlRow("Ctrl + S / E", "Quick-save project / Export .logiclabs.json"),
+    ControlRow("Ctrl + Shift + P", "Download High-DPI Breadboard PNG Snapshot"),
+    ControlRow("Drag & Drop .json", "Drop any .logiclabs.json file onto browser to open"),
+    ControlRow("F11", "Toggle edge-to-edge Fullscreen Workstation mode"),
     ControlRow("Ctrl + 1 .. 4", "Switch Home tabs (Projects, Labs, ICs, Settings)"),
-    ControlRow("PgUp / PgDn", "Scroll pages, catalogs, settings, and console"),
     ControlRow("F1  or  ?", "Open this Controls & Shortcuts Guide")
 )
 
 /**
- * Dedicated Controls & Keyboard Shortcuts Reference modal, reachable via F1, ?,
- * the top toolbar '?' button, the Help menu, and Settings.
+ * Responsive Controls, Touch Gestures & Keyboard Shortcuts Reference modal (`F1` / `?`).
+ * Renders a 2-column grid on desktop/tablets (`>= 720dp`) and a clean single-column stack on phones.
  */
 @Composable
 fun ControlsGuideDialog(onDismiss: () -> Unit) {
@@ -101,17 +102,18 @@ fun ControlsGuideDialog(onDismiss: () -> Unit) {
         maxHeight = 720.dp
     ) {
         SheetScaffold(
-            title = "CONTROLS & KEYBOARD SHORTCUTS",
-            subtitle = "mouse pointer, breadboard CAD hotkeys, trainer console & keyboard navigation",
+            title = "CONTROLS, TOUCH & KEYBOARD SHORTCUTS",
+            subtitle = "pinch & wheel zoom, breadboard CAD gestures, trainer console & workspace hotkeys",
             titleIcon = LogicIcons.Info,
             onDismiss = onDismiss
         ) {
-            Box(
+            BoxWithConstraints(
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f, fill = false)
                     .keyboardPageScroll(scrollState)
             ) {
+                val twoColumns = maxWidth >= 680.dp
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -119,48 +121,83 @@ fun ControlsGuideDialog(onDismiss: () -> Unit) {
                         .padding(end = Dimens.Space3),
                     verticalArrangement = Arrangement.spacedBy(Dimens.Space2)
                 ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(IntrinsicSize.Min),
-                        horizontalArrangement = Arrangement.spacedBy(Dimens.Space2)
-                    ) {
-                        ControlSectionCard(
-                            title = "MOUSE POINTER",
-                            accent = AccentCyan,
-                            rows = MouseControls,
-                            modifier = Modifier.weight(1f).fillMaxHeight()
-                        )
-                        ControlSectionCard(
-                            title = "BREADBOARD HOTKEYS",
-                            accent = PhosphorCore,
-                            rows = BreadboardHotkeys,
-                            modifier = Modifier.weight(1f).fillMaxHeight()
-                        )
-                    }
+                    if (twoColumns) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(IntrinsicSize.Min),
+                            horizontalArrangement = Arrangement.spacedBy(Dimens.Space2)
+                        ) {
+                            ControlSectionCard(
+                                title = "TOUCH, TRACKPAD & MOUSE",
+                                accent = AccentCyan,
+                                rows = PointerAndTouchControls,
+                                compact = false,
+                                modifier = Modifier.weight(1f).fillMaxHeight()
+                            )
+                            ControlSectionCard(
+                                title = "BREADBOARD CAD HOTKEYS",
+                                accent = PhosphorCore,
+                                rows = BreadboardHotkeys,
+                                compact = false,
+                                modifier = Modifier.weight(1f).fillMaxHeight()
+                            )
+                        }
 
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(IntrinsicSize.Min),
-                        horizontalArrangement = Arrangement.spacedBy(Dimens.Space2)
-                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(IntrinsicSize.Min),
+                            horizontalArrangement = Arrangement.spacedBy(Dimens.Space2)
+                        ) {
+                            ControlSectionCard(
+                                title = "TRAINER CONSOLE KEYS",
+                                accent = AmberCore,
+                                rows = ConsoleHotkeys,
+                                compact = false,
+                                modifier = Modifier.weight(1f).fillMaxHeight()
+                            )
+                            ControlSectionCard(
+                                title = "INSTRUMENTS, EXPORT & WEB",
+                                accent = AccentCyan,
+                                rows = WorkspaceHotkeys,
+                                compact = false,
+                                modifier = Modifier.weight(1f).fillMaxHeight()
+                            )
+                        }
+                    } else {
+                        ControlSectionCard(
+                            title = "TOUCH, TRACKPAD & MOUSE",
+                            accent = AccentCyan,
+                            rows = PointerAndTouchControls,
+                            compact = true,
+                            modifier = Modifier.fillMaxWidth()
+                        )
                         ControlSectionCard(
                             title = "TRAINER CONSOLE KEYS",
                             accent = AmberCore,
                             rows = ConsoleHotkeys,
-                            modifier = Modifier.weight(1f).fillMaxHeight()
+                            compact = true,
+                            modifier = Modifier.fillMaxWidth()
                         )
                         ControlSectionCard(
-                            title = "TOOLS, FILES & KEYBOARD SELECTION",
+                            title = "BREADBOARD CAD HOTKEYS",
+                            accent = PhosphorCore,
+                            rows = BreadboardHotkeys,
+                            compact = true,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        ControlSectionCard(
+                            title = "INSTRUMENTS, EXPORT & WEB",
                             accent = AccentCyan,
                             rows = WorkspaceHotkeys,
-                            modifier = Modifier.weight(1f).fillMaxHeight()
+                            compact = true,
+                            modifier = Modifier.fillMaxWidth()
                         )
                     }
 
                     Text(
-                        text = "Tip: Press C to open the Chip Catalog, type a part like '7408', use Up/Down arrows, and press Enter to place it immediately.",
+                        text = "Tip: Pinch two fingers on phones/trackpads or scroll your mouse wheel anywhere on the breadboard to zoom smoothly, or double-tap empty board space to toggle 2.2x closeup!",
                         style = LogicLabsType.BodySm,
                         color = TextSecondary
                     )
@@ -182,6 +219,7 @@ private fun ControlSectionCard(
     title: String,
     accent: androidx.compose.ui.graphics.Color,
     rows: List<ControlRow>,
+    compact: Boolean,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -190,7 +228,7 @@ private fun ControlSectionCard(
             .background(SurfaceCard)
             .border(Dimens.Hairline, SurfaceCardBorder, RoundedCornerShape(Dimens.RadiusMd))
             .padding(horizontal = Dimens.Space3, vertical = Dimens.Space2),
-        verticalArrangement = Arrangement.spacedBy(5.dp)
+        verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
         Text(
             text = title,
@@ -210,7 +248,7 @@ private fun ControlSectionCard(
             ) {
                 Box(
                     modifier = Modifier
-                        .widthIn(min = 128.dp)
+                        .widthIn(min = if (compact) 108.dp else 132.dp)
                         .clip(RoundedCornerShape(Dimens.RadiusSm))
                         .background(SurfaceRaised)
                         .border(Dimens.Hairline, accent.copy(alpha = 0.45f), RoundedCornerShape(Dimens.RadiusSm))

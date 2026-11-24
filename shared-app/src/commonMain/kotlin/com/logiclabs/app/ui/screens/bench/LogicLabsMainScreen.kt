@@ -5,6 +5,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -147,7 +148,8 @@ fun LogicLabsMainScreen(
     container: AppContainer,
     onNavigateHome: () -> Unit,
     onOpenControlsGuide: () -> Unit = {},
-    onRegisterMenuActions: (BenchMenuActions?) -> Unit = {}
+    onRegisterMenuActions: (BenchMenuActions?) -> Unit = {},
+    externalModalOpen: Boolean = false
 ) {
     val bench = rememberWorkbenchState()
     val circuit = bench.circuit
@@ -174,6 +176,8 @@ fun LogicLabsMainScreen(
 
     var consoleCollapsed by remember { mutableStateOf(false) }
     var consoleWidthDp by remember { mutableStateOf(380.dp) }
+    var mobileConsoleHeightDp by remember { mutableStateOf(272.dp) }
+    var isFullscreen by remember { mutableStateOf(AppPlatform.isFullscreen()) }
     var contextMenuRequest by remember { mutableStateOf<BreadboardContextMenuRequest?>(null) }
     var inspectedChipPartNumber by remember { mutableStateOf<String?>(null) }
 
@@ -181,7 +185,8 @@ fun LogicLabsMainScreen(
         saveAsOpen ||
         shareDialogOpen ||
         confirmLeaveBench ||
-        inspectedChipPartNumber != null
+        inspectedChipPartNumber != null ||
+        externalModalOpen
 
     LaunchedEffect(hasModalOpen) {
         if (!hasModalOpen) {
@@ -290,6 +295,22 @@ fun LogicLabsMainScreen(
                     .copy(id = currentProjectId ?: "")
             )
             AppPlatform.exportJsonText("$safeName.logiclabs.json", jsonText) { ok, message ->
+                if (ok) Haptics.success()
+                showNotice(message)
+            }
+        }
+    }
+
+    fun exportCurrentCircuitPng() {
+        scope.launch {
+            val title = currentProjectTitle ?: defaultProjectTitle(activeLab)
+            val safeName = title.replace(Regex("[^A-Za-z0-9 _-]"), "").ifBlank { "circuit" }
+            val bytes = com.logiclabs.feature.breadboard.canvas.BreadboardSnapshotExporter.renderPngBytes(circuit)
+            if (bytes == null) {
+                showNotice("Could not render PNG snapshot")
+                return@launch
+            }
+            AppPlatform.exportPngSnapshot("$safeName-breadboard.png", bytes) { ok, message ->
                 if (ok) Haptics.success()
                 showNotice(message)
             }
@@ -690,7 +711,14 @@ fun LogicLabsMainScreen(
                 onRedoClick = { performRedo() },
                 onControlsGuideClick = onOpenControlsGuide,
                 consoleCollapsed = consoleCollapsed,
-                onToggleConsoleClick = { consoleCollapsed = !consoleCollapsed }
+                onToggleConsoleClick = { consoleCollapsed = !consoleCollapsed },
+                isFullscreen = isFullscreen,
+                onToggleFullscreenClick = if (AppPlatform.supportsFullscreen) {
+                    {
+                        Haptics.tick()
+                        isFullscreen = AppPlatform.toggleFullscreen()
+                    }
+                } else null
             )
 
             ToolRail(
@@ -727,6 +755,7 @@ fun LogicLabsMainScreen(
                 simulationModeLabel = if (bench.simulationMode == SimulationMode.PRACTICAL) "PRACTICAL" else "IDEAL",
                 chipCount = bench.chipCount,
                 wireCount = bench.wireCount,
+                zoomPercent = canvasState.zoomPercent(),
                 diagramActive = bench.viewingDiagram
             )
 
@@ -760,7 +789,8 @@ fun LogicLabsMainScreen(
                         circuit = circuit,
                         modifier = Modifier.fillMaxSize(),
                         circuitVersion = bench.topologyVersion,
-                        renderVersion = bench.renderVersion
+                        renderVersion = bench.renderVersion,
+                        zoomCaptureEnabled = !hasModalOpen
                     )
                 } else {
                     BreadboardCanvas(
@@ -776,6 +806,7 @@ fun LogicLabsMainScreen(
                         circuitVersion = bench.topologyVersion,
                         renderVersion = bench.renderVersion,
                         resetFitTrigger = resetFitTrigger,
+                        zoomCaptureEnabled = !hasModalOpen,
                         onWireSelected = { id -> bench.selectWire(id) },
                         onChipSelected = { id -> bench.selectChip(id) },
                         onChipDoubleClicked = { chipId ->
@@ -975,6 +1006,11 @@ fun LogicLabsMainScreen(
                     onOpenControlsGuide()
                     return@onPreviewKeyEvent true
                 }
+                if (ev.key == Key.F11 && ev.type == KeyEventType.KeyDown && AppPlatform.supportsFullscreen) {
+                    Haptics.tick()
+                    isFullscreen = AppPlatform.toggleFullscreen()
+                    return@onPreviewKeyEvent true
+                }
                 if (hasModalOpen) return@onPreviewKeyEvent false
 
                 val ctrl = ev.isCtrlPressed || ev.isMetaPressed
@@ -1025,6 +1061,26 @@ fun LogicLabsMainScreen(
                         }
                         Key.E -> {
                             exportCurrentCircuitJson()
+                            return@onPreviewKeyEvent true
+                        }
+                        Key.P -> {
+                            if (shift) {
+                                exportCurrentCircuitPng()
+                                return@onPreviewKeyEvent true
+                            }
+                            return@onPreviewKeyEvent false
+                        }
+                        Key.Equals, Key.Plus, Key.NumPadAdd -> {
+                            canvasState.nudgeZoom(1.22f)
+                            return@onPreviewKeyEvent true
+                        }
+                        Key.Minus, Key.NumPadSubtract -> {
+                            canvasState.nudgeZoom(1f / 1.22f)
+                            return@onPreviewKeyEvent true
+                        }
+                        Key.Zero, Key.NumPad0 -> {
+                            bench.clearSelection()
+                            resetFitTrigger++
                             return@onPreviewKeyEvent true
                         }
                         else -> return@onPreviewKeyEvent false
@@ -1227,7 +1283,10 @@ fun LogicLabsMainScreen(
                         }
                     }
                 } else {
-                    // Compact phone & portrait tablet layout: full-width breadboard + collapsible bottom IDL-800A console drawer
+                    // Compact phone & portrait tablet layout: full-width breadboard + resizable bottom IDL-800A console drawer
+                    val maxDrawerHeight = (screenMaxHeight * 0.56f).coerceIn(220.dp, 460.dp)
+                    val effectiveMobileHeight = mobileConsoleHeightDp.coerceIn(190.dp, maxDrawerHeight)
+
                     Column(modifier = Modifier.fillMaxSize()) {
                         breadboardPane(
                             Modifier
@@ -1235,62 +1294,113 @@ fun LogicLabsMainScreen(
                                 .fillMaxWidth()
                         )
 
-                        // Always-visible mobile Trainer Console status strip & drawer handle
-                        val mobileConsoleHeight = (screenMaxHeight * 0.42f).coerceIn(210.dp, 340.dp)
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .background(ChassisBase)
                         ) {
                             Box(Modifier.fillMaxWidth().height(1.dp).background(SurfaceCardBorder))
+
+                            // Drag-to-resize & tap-to-collapse mobile console handle bar
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
+                                    .pointerInput(maxDrawerHeight, consoleCollapsed) {
+                                        detectVerticalDragGestures { change, dragAmount ->
+                                            change.consume()
+                                            val deltaDp = with(density) { dragAmount.toDp() }
+                                            if (consoleCollapsed && deltaDp < -8.dp) {
+                                                consoleCollapsed = false
+                                            } else if (!consoleCollapsed) {
+                                                val next = mobileConsoleHeightDp - deltaDp
+                                                if (next < 150.dp && deltaDp > 6.dp) {
+                                                    consoleCollapsed = true
+                                                } else {
+                                                    mobileConsoleHeightDp = next.coerceIn(190.dp, maxDrawerHeight)
+                                                }
+                                            }
+                                        }
+                                    }
                                     .desktopPointerHand()
                                     .clickable {
                                         Haptics.tick()
                                         consoleCollapsed = !consoleCollapsed
                                     }
-                                    .padding(horizontal = Dimens.Space3, vertical = 7.dp),
+                                    .padding(horizontal = Dimens.Space3, vertical = 6.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                // Live Power indicator dot
+                                // Interactive quick Power pill right on the drawer bar
                                 Box(
                                     modifier = Modifier
-                                        .size(8.dp)
-                                        .clip(androidx.compose.foundation.shape.CircleShape)
-                                        .background(if (bench.masterPower) PhosphorCore else TextTertiary)
-                                )
+                                        .clip(RoundedCornerShape(Dimens.RadiusPill))
+                                        .background(
+                                            if (bench.masterPower) PhosphorCore.copy(alpha = 0.16f)
+                                            else ShortCircuitAlert.copy(alpha = 0.14f)
+                                        )
+                                        .border(
+                                            Dimens.Hairline,
+                                            if (bench.masterPower) PhosphorCore.copy(alpha = 0.65f)
+                                            else ShortCircuitAlert.copy(alpha = 0.55f),
+                                            RoundedCornerShape(Dimens.RadiusPill)
+                                        )
+                                        .clickable {
+                                            bench.driveMasterPower(!bench.masterPower)
+                                            Haptics.thud()
+                                        }
+                                        .padding(horizontal = 7.dp, vertical = 2.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = if (bench.masterPower) "5V ON" else "0V OFF",
+                                        style = LogicLabsType.TechnicalXs,
+                                        color = if (bench.masterPower) PhosphorCore else ShortCircuitAlert,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+
                                 Text(
-                                    text = "IDL-800A CONSOLE",
+                                    text = "IDL-800A",
                                     style = LogicLabsType.SwitchPlate,
                                     color = TextPrimary,
                                     fontWeight = FontWeight.Bold
                                 )
-                                // Live L7..L0 mini LED bar visible even while collapsed
-                                Row(
+
+                                // Center drag grip pill + live LED bar
+                                Column(
                                     modifier = Modifier.weight(1f),
-                                    horizontalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterHorizontally),
-                                    verticalAlignment = Alignment.CenterVertically
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.spacedBy(3.dp)
                                 ) {
-                                    // Trigger recomposition on renderVersion
-                                    val rv = bench.renderVersion
-                                    for (ledIdx in 7 downTo 0) {
-                                        val lit = rv >= 0 && circuit.masterPower && circuit.ledValues[ledIdx]
-                                        Box(
-                                            modifier = Modifier
-                                                .size(7.dp)
-                                                .clip(androidx.compose.foundation.shape.CircleShape)
-                                                .background(if (lit) PhosphorCore else SurfaceCard)
-                                                .border(
-                                                    width = Dimens.Hairline,
-                                                    color = if (lit) PhosphorCore else SurfaceCardBorder,
-                                                    shape = androidx.compose.foundation.shape.CircleShape
-                                                )
-                                        )
+                                    Box(
+                                        modifier = Modifier
+                                            .width(34.dp)
+                                            .height(3.dp)
+                                            .clip(RoundedCornerShape(2.dp))
+                                            .background(TextTertiary.copy(alpha = 0.55f))
+                                    )
+                                    Row(
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterHorizontally),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        val rv = bench.renderVersion
+                                        for (ledIdx in 7 downTo 0) {
+                                            val lit = rv >= 0 && circuit.masterPower && circuit.ledValues[ledIdx]
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(6.dp)
+                                                    .clip(androidx.compose.foundation.shape.CircleShape)
+                                                    .background(if (lit) PhosphorCore else SurfaceCard)
+                                                    .border(
+                                                        width = Dimens.Hairline,
+                                                        color = if (lit) PhosphorCore else SurfaceCardBorder,
+                                                        shape = androidx.compose.foundation.shape.CircleShape
+                                                    )
+                                            )
+                                        }
                                     }
                                 }
+
                                 Box(
                                     modifier = Modifier
                                         .clip(RoundedCornerShape(Dimens.RadiusSm))
@@ -1299,18 +1409,64 @@ fun LogicLabsMainScreen(
                                         .padding(horizontal = 8.dp, vertical = 3.dp)
                                 ) {
                                     Text(
-                                        text = if (consoleCollapsed) "OPEN ▲" else "HIDE ▼",
+                                        text = if (consoleCollapsed) "CONSOLE ▲" else "HIDE ▼",
                                         style = LogicLabsType.TechnicalXs,
                                         color = AccentCyan,
                                         fontWeight = FontWeight.Bold
                                     )
                                 }
                             }
-                            if (!consoleCollapsed) {
+
+                            if (consoleCollapsed) {
+                                // Slim interactive Quick-I/O Strip when drawer is collapsed: tap S7..S0 directly while keeping 80%+ screen for breadboard!
+                                val rv = bench.renderVersion
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(start = Dimens.Space2, end = Dimens.Space2, bottom = 6.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    for (idx in 7 downTo 0) {
+                                        val swOn = rv >= 0 && circuit.switches[idx]
+                                        val ledOn = rv >= 0 && circuit.masterPower && circuit.ledValues[idx]
+                                        Column(
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .clip(RoundedCornerShape(5.dp))
+                                                .background(if (swOn) AccentCyan.copy(alpha = 0.20f) else SurfaceCard)
+                                                .border(
+                                                    width = Dimens.Hairline,
+                                                    color = if (swOn) AccentCyan else SurfaceCardBorder,
+                                                    shape = RoundedCornerShape(5.dp)
+                                                )
+                                                .clickable {
+                                                    bench.toggleSwitch(idx)
+                                                    Haptics.tick()
+                                                }
+                                                .padding(vertical = 4.dp),
+                                            horizontalAlignment = Alignment.CenterHorizontally,
+                                            verticalArrangement = Arrangement.spacedBy(2.dp)
+                                        ) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(6.dp)
+                                                    .clip(androidx.compose.foundation.shape.CircleShape)
+                                                    .background(if (ledOn) PhosphorCore else SurfaceRaised)
+                                            )
+                                            Text(
+                                                text = "S$idx",
+                                                style = LogicLabsType.TechnicalXs,
+                                                color = if (swOn) AccentCyan else TextSecondary
+                                            )
+                                        }
+                                    }
+                                }
+                            } else {
                                 Box(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .height(mobileConsoleHeight)
+                                        .height(effectiveMobileHeight)
                                 ) {
                                     TrainerConsoleDock(
                                         circuit = circuit,
@@ -1388,6 +1544,10 @@ fun LogicLabsMainScreen(
                 bench.overlay = Overlay.NONE
                 exportCurrentCircuitJson()
             },
+            onExportPng = {
+                bench.overlay = Overlay.NONE
+                exportCurrentCircuitPng()
+            },
             onDismiss = { bench.overlay = Overlay.NONE }
         )
     }
@@ -1425,10 +1585,15 @@ fun LogicLabsMainScreen(
         }
         ShareCircuitDialog(
             code = shareCode,
-            onCopied = { showNotice("Circuit code copied to clipboard") },
+            circuitTitle = currentProjectTitle ?: defaultProjectTitle(activeLab),
+            onCopied = { msg -> showNotice(msg) },
             onExportJson = {
                 shareDialogOpen = false
                 exportCurrentCircuitJson()
+            },
+            onExportPng = {
+                shareDialogOpen = false
+                exportCurrentCircuitPng()
             },
             onDismiss = { shareDialogOpen = false }
         )
@@ -1519,6 +1684,7 @@ private fun BoardActionsDialog(
     onResetBoard: () -> Unit,
     onReloadLab: () -> Unit,
     onExportProject: (() -> Unit)?,
+    onExportPng: (() -> Unit)? = null,
     onDismiss: () -> Unit
 ) {
     BenchDialog(
@@ -1527,6 +1693,12 @@ private fun BoardActionsDialog(
         title = "Board actions",
         message = "Nothing is selected — these act on the whole breadboard (you can still press Ctrl+Z to undo).",
         actions = {
+            if (onExportPng != null) {
+                BenchDialogAction(
+                    "DOWNLOAD PNG SNAPSHOT", onExportPng,
+                    tone = BenchDialogTone.ACCENT, leadingIcon = LogicIcons.Camera
+                )
+            }
             if (onExportProject != null) {
                 BenchDialogAction(
                     "EXPORT PROJECT (.JSON)", onExportProject,
@@ -1567,7 +1739,7 @@ private fun SaveProjectDialog(
         onDismissRequest = onDismiss,
         icon = LogicIcons.Save,
         title = "Save project",
-        message = "Name this build — it is stored locally on this PC.",
+        message = "Name this build — it is stored locally in ${if (AppPlatform.isWeb) "browser storage (works offline)" else "this PC"}.",
         content = {
             Spacer(Modifier.height(Dimens.Space3))
             OutlinedTextField(
@@ -1652,15 +1824,17 @@ private fun LeaveBenchDialog(
 @Composable
 private fun ShareCircuitDialog(
     code: String,
-    onCopied: () -> Unit,
+    circuitTitle: String = "Logic Labs Circuit",
+    onCopied: (String) -> Unit,
     onExportJson: () -> Unit,
+    onExportPng: (() -> Unit)? = null,
     onDismiss: () -> Unit
 ) {
     BenchDialog(
         onDismissRequest = onDismiss,
         icon = LogicIcons.Share,
-        title = "Share circuit",
-        message = "Compact bytecode representing all chips, wires, and console states on this breadboard.",
+        title = "Share & export circuit",
+        message = "Share a live 1-click link, copy cross-platform bytecode, or download a High-DPI breadboard PNG / JSON file.",
         content = {
             Spacer(Modifier.height(Dimens.Space3))
             val codeScroll = rememberScrollState()
@@ -1701,10 +1875,34 @@ private fun ShareCircuitDialog(
                     onClick = {
                         AppPlatform.copyToClipboard(shareUrl)
                         Haptics.tick()
-                        onCopied()
+                        onCopied("Direct live circuit URL copied to clipboard")
                         onDismiss()
                     },
                     leadingIcon = LogicIcons.Share,
+                    tone = BenchDialogTone.ACCENT
+                )
+                if (AppPlatform.canNativeShare()) {
+                    BenchDialogAction(
+                        "SHARE VIA DEVICE...",
+                        onClick = {
+                            Haptics.tick()
+                            AppPlatform.nativeShareUrl(
+                                title = "$circuitTitle — Logic Labs",
+                                text = "Open this live K&H IDL-800A breadboard circuit in Logic Labs:",
+                                url = shareUrl
+                            )
+                            onDismiss()
+                        },
+                        leadingIcon = LogicIcons.Share,
+                        tone = BenchDialogTone.ACCENT
+                    )
+                }
+            }
+            if (onExportPng != null) {
+                BenchDialogAction(
+                    "DOWNLOAD PNG IMAGE",
+                    onClick = onExportPng,
+                    leadingIcon = LogicIcons.Camera,
                     tone = BenchDialogTone.ACCENT
                 )
             }
@@ -1713,7 +1911,7 @@ private fun ShareCircuitDialog(
                 onClick = {
                     AppPlatform.copyToClipboard(code)
                     Haptics.tick()
-                    onCopied()
+                    onCopied("Circuit bytecode copied to clipboard")
                     onDismiss()
                 },
                 leadingIcon = LogicIcons.Export,

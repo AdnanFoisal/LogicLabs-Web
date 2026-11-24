@@ -22,7 +22,10 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -233,6 +236,94 @@ fun DesktopHomeSidebar(
                 }
             }
 
+            val appPlatform = com.logiclabs.app.platform.AppPlatform
+            var canInstall by androidx.compose.runtime.remember {
+                androidx.compose.runtime.mutableStateOf(appPlatform.canInstallPwa())
+            }
+            var isFull by androidx.compose.runtime.remember {
+                androidx.compose.runtime.mutableStateOf(appPlatform.isFullscreen())
+            }
+
+            if (canInstall) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(Dimens.RadiusMd))
+                        .background(PhosphorCore.copy(alpha = 0.14f))
+                        .border(Dimens.Hairline, PhosphorCore.copy(alpha = 0.55f), RoundedCornerShape(Dimens.RadiusMd))
+                        .desktopPointerHand()
+                        .clickable(role = Role.Button) {
+                            Haptics.tick()
+                            appPlatform.promptInstallPwa {
+                                canInstall = appPlatform.canInstallPwa()
+                            }
+                        }
+                        .padding(horizontal = 10.dp, vertical = 9.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = LogicIcons.InstallApp,
+                        contentDescription = null,
+                        tint = PhosphorCore,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        text = "INSTALL OFFLINE APP",
+                        style = LogicLabsType.SwitchPlate,
+                        color = PhosphorCore,
+                        modifier = Modifier.weight(1f),
+                        maxLines = 1
+                    )
+                }
+            }
+
+            if (appPlatform.supportsFullscreen) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(Dimens.RadiusMd))
+                        .background(SurfaceCard.copy(alpha = 0.55f))
+                        .border(Dimens.Hairline, SurfaceCardBorder, RoundedCornerShape(Dimens.RadiusMd))
+                        .desktopPointerHand()
+                        .clickable(role = Role.Button) {
+                            Haptics.tick()
+                            isFull = appPlatform.toggleFullscreen()
+                        }
+                        .padding(horizontal = 10.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = if (isFull) LogicIcons.FullscreenExit else LogicIcons.Fullscreen,
+                        contentDescription = null,
+                        tint = TextSecondary,
+                        modifier = Modifier.size(15.dp)
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        text = if (isFull) "EXIT FULLSCREEN" else "FULLSCREEN MODE",
+                        style = LogicLabsType.SwitchPlate,
+                        color = TextSecondary,
+                        modifier = Modifier.weight(1f),
+                        maxLines = 1
+                    )
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(SurfaceRaised)
+                            .border(Dimens.Hairline, SurfaceCardBorder, RoundedCornerShape(4.dp))
+                            .padding(horizontal = 5.dp, vertical = 1.dp)
+                    ) {
+                        Text(
+                            text = "F11",
+                            style = LogicLabsType.TechnicalXs,
+                            color = TextTertiary,
+                            fontSize = 9.sp
+                        )
+                    }
+                }
+            }
+
             // Controls & Shortcuts Guide button — always one click or F1 away
             Row(
                 modifier = Modifier
@@ -289,14 +380,14 @@ fun DesktopHomeSidebar(
                     text = if (isPortableMode) {
                         "STORAGE · PORTABLE"
                     } else {
-                        "STORAGE · ${com.logiclabs.app.platform.AppPlatform.standardStorageLabel}"
+                        "STORAGE · ${appPlatform.standardStorageLabel}"
                     },
                     style = LogicLabsType.TechnicalXs,
                     color = TextTertiary,
                     fontSize = 9.sp
                 )
                 Text(
-                    text = "v1.1.3 · ${com.logiclabs.app.platform.AppPlatform.platformEditionLabel}",
+                    text = "v1.3.0 · ${appPlatform.platformEditionLabel}",
                     style = LogicLabsType.TechnicalXs,
                     color = TextTertiary,
                     fontSize = 9.sp
@@ -323,6 +414,14 @@ fun MobileHomeTopBar(
     onOpenControlsGuide: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val appPlatform = com.logiclabs.app.platform.AppPlatform
+    var canInstall by androidx.compose.runtime.remember {
+        androidx.compose.runtime.mutableStateOf(appPlatform.canInstallPwa())
+    }
+    var isFull by androidx.compose.runtime.remember {
+        androidx.compose.runtime.mutableStateOf(appPlatform.isFullscreen())
+    }
+
     Column(modifier = modifier.fillMaxWidth().background(ChassisBase)) {
         Row(
             modifier = Modifier
@@ -354,11 +453,31 @@ fun MobileHomeTopBar(
                 ) {
                     Box(Modifier.size(5.dp).clip(CircleShape).background(PhosphorCore))
                     Text(
-                        text = if (com.logiclabs.app.platform.AppPlatform.isWeb) "WEB" else "READY",
+                        text = if (appPlatform.isWeb) "WEB" else "READY",
                         style = LogicLabsType.TechnicalXs,
                         color = PhosphorCore,
                         fontSize = 8.sp
                     )
+                }
+            }
+
+            if (canInstall) {
+                Box(
+                    modifier = Modifier
+                        .size(32.dp)
+                        .clip(RoundedCornerShape(Dimens.RadiusMd))
+                        .background(PhosphorCore.copy(alpha = 0.14f))
+                        .border(Dimens.Hairline, PhosphorCore.copy(alpha = 0.55f), RoundedCornerShape(Dimens.RadiusMd))
+                        .desktopPointerHand()
+                        .clickable(role = Role.Button) {
+                            Haptics.tick()
+                            appPlatform.promptInstallPwa {
+                                canInstall = appPlatform.canInstallPwa()
+                            }
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(LogicIcons.InstallApp, "Install offline app", tint = PhosphorCore, modifier = Modifier.size(16.dp))
                 }
             }
 
@@ -382,6 +501,29 @@ fun MobileHomeTopBar(
                     color = ChassisBase,
                     fontWeight = FontWeight.Bold
                 )
+            }
+
+            if (appPlatform.supportsFullscreen) {
+                Box(
+                    modifier = Modifier
+                        .size(32.dp)
+                        .clip(RoundedCornerShape(Dimens.RadiusMd))
+                        .background(SurfaceCard)
+                        .border(Dimens.Hairline, SurfaceCardBorder, RoundedCornerShape(Dimens.RadiusMd))
+                        .desktopPointerHand()
+                        .clickable(role = Role.Button) {
+                            Haptics.tick()
+                            isFull = appPlatform.toggleFullscreen()
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = if (isFull) LogicIcons.FullscreenExit else LogicIcons.Fullscreen,
+                        contentDescription = "Fullscreen",
+                        tint = TextSecondary,
+                        modifier = Modifier.size(15.dp)
+                    )
+                }
             }
 
             Box(

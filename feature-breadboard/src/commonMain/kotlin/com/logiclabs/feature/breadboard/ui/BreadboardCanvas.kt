@@ -27,6 +27,7 @@ import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.platform.LocalDensity
 import com.logiclabs.core.bridge.circuit.BreadboardCircuit
 import com.logiclabs.core.bridge.model.WireColor
+import com.logiclabs.core.designsystem.component.webNativeZoomTarget
 import com.logiclabs.core.designsystem.theme.AccentCyan
 import com.logiclabs.core.designsystem.theme.WireSpecular
 import com.logiclabs.core.designsystem.theme.wireColorOf
@@ -58,6 +59,7 @@ fun BreadboardCanvas(
     circuitVersion: Int = 0,
     renderVersion: Int = 0,
     resetFitTrigger: Int = 0,
+    zoomCaptureEnabled: Boolean = true,
     onWireSelected: ((String?) -> Unit)? = null,
     onChipSelected: ((String?) -> Unit)? = null,
     onChipDoubleClicked: ((String) -> Unit)? = null,
@@ -135,6 +137,9 @@ fun BreadboardCanvas(
             modifier = Modifier
                 .fillMaxSize()
                 .clipToBounds()
+                .webNativeZoomTarget(enabled = zoomCaptureEnabled) { zoom, panDx, panDy, lx, ly ->
+                    state.applyPinch(zoom, Offset(panDx, panDy), Offset(lx, ly))
+                }
                 .breadboardGestures(
                     state = state,
                     mapper = mapper,

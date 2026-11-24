@@ -13,6 +13,7 @@ expect object AppPlatform {
     val standardStoragePathHint: String
     val executableName: String
     val canOpenStorageFolder: Boolean
+    val supportsFullscreen: Boolean
     val resizeHorizontalPointerIcon: PointerIcon
 
     fun copyToClipboard(text: String): Boolean
@@ -34,8 +35,26 @@ expect object AppPlatform {
         onComplete: (success: Boolean, message: String) -> Unit
     )
 
+    fun exportPngSnapshot(
+        suggestedFileName: String,
+        pngBytes: ByteArray,
+        onComplete: (success: Boolean, message: String) -> Unit
+    )
+
     fun openStorageFolder(locationDisplay: String): Boolean
 
     /** Returns a direct clickable Web share URL (`?circuit=LOGIC-...`) on Web, or `null` on Desktop. */
     fun buildShareUrl(shareCode: String): String?
+
+    fun isFullscreen(): Boolean
+
+    fun toggleFullscreen(): Boolean
+
+    fun canInstallPwa(): Boolean
+
+    fun promptInstallPwa(onResult: (Boolean) -> Unit = {})
+
+    fun canNativeShare(): Boolean
+
+    fun nativeShareUrl(title: String, text: String, url: String): Boolean
 }

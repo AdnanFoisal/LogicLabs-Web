@@ -13,6 +13,13 @@ internal expect fun webPlatformDownloadBase64Bytes(fileName: String, mimeType: S
 internal expect fun webPlatformPickJsonFile(onLoaded: (fileName: String, content: String?) -> Unit)
 internal expect fun webPlatformBasePageUrl(): String
 internal expect fun webPlatformEngineLabel(): String
+internal expect fun webPlatformSupportsFullscreen(): Boolean
+internal expect fun webPlatformIsFullscreen(): Boolean
+internal expect fun webPlatformToggleFullscreen(): Boolean
+internal expect fun webPlatformCanInstallPwa(): Boolean
+internal expect fun webPlatformPromptInstallPwa(onResult: (Boolean) -> Unit)
+internal expect fun webPlatformCanNativeShare(): Boolean
+internal expect fun webPlatformNativeShareUrl(title: String, text: String, url: String): Boolean
 
 @OptIn(ExperimentalEncodingApi::class)
 actual object AppPlatform {
@@ -22,6 +29,7 @@ actual object AppPlatform {
     actual val standardStoragePathHint: String = "Browser localStorage (Offline PWA)"
     actual val executableName: String = "Logic Labs Web PWA"
     actual val canOpenStorageFolder: Boolean = false
+    actual val supportsFullscreen: Boolean get() = webPlatformSupportsFullscreen()
     actual val resizeHorizontalPointerIcon: PointerIcon = PointerIcon.Hand
 
     actual fun copyToClipboard(text: String): Boolean = webPlatformCopyText(text)
@@ -57,6 +65,16 @@ actual object AppPlatform {
         else onComplete(false, "Browser blocked PDF download.")
     }
 
+    actual fun exportPngSnapshot(
+        suggestedFileName: String,
+        pngBytes: ByteArray,
+        onComplete: (success: Boolean, message: String) -> Unit
+    ) {
+        val ok = webPlatformDownloadBase64Bytes(suggestedFileName, "image/png", Base64.encode(pngBytes))
+        if (ok) onComplete(true, "Downloaded breadboard PNG: $suggestedFileName")
+        else onComplete(false, "Browser blocked PNG download.")
+    }
+
     actual fun openStorageFolder(locationDisplay: String): Boolean = false
 
     actual fun buildShareUrl(shareCode: String): String? {
@@ -64,4 +82,17 @@ actual object AppPlatform {
         if (base.isBlank()) return null
         return "$base?circuit=$shareCode"
     }
+
+    actual fun isFullscreen(): Boolean = webPlatformIsFullscreen()
+
+    actual fun toggleFullscreen(): Boolean = webPlatformToggleFullscreen()
+
+    actual fun canInstallPwa(): Boolean = webPlatformCanInstallPwa()
+
+    actual fun promptInstallPwa(onResult: (Boolean) -> Unit) = webPlatformPromptInstallPwa(onResult)
+
+    actual fun canNativeShare(): Boolean = webPlatformCanNativeShare()
+
+    actual fun nativeShareUrl(title: String, text: String, url: String): Boolean =
+        webPlatformNativeShareUrl(title, text, url)
 }

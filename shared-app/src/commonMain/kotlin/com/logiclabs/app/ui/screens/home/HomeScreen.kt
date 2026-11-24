@@ -978,7 +978,7 @@ private fun QuickStartLabsGrid(
 @Composable
 private fun Footer() {
     Text(
-        text = "LOGIC LABS v1.1.3 · ${AppPlatform.platformEditionLabel} EDITION · OFFLINE BENCH · NO ACCOUNTS · NO TRACKING",
+        text = "LOGIC LABS v1.3.0 · ${AppPlatform.platformEditionLabel} EDITION · OFFLINE BENCH · NO ACCOUNTS · NO TRACKING",
         style = LogicLabsType.TechnicalXs,
         color = TextTertiary,
         maxLines = 1,

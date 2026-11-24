@@ -68,6 +68,7 @@ fun ToolRail(
     simulationModeLabel: String = "PRACTICAL",
     chipCount: Int = 0,
     wireCount: Int = 0,
+    zoomPercent: Int = 100,
     diagramActive: Boolean = false,
     modifier: Modifier = Modifier
 ) {
@@ -76,166 +77,173 @@ fun ToolRail(
     val scope = rememberCoroutineScope()
     val overflows = scrollState.maxValue > 0
 
-    Column(
+    androidx.compose.foundation.layout.BoxWithConstraints(
         modifier = modifier.fillMaxWidth()
     ) {
-        // 1. Horizontal Tool Ribbon with automatic wheel-scroll & overflow chevrons
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = Dimens.CommandBarInset, vertical = 4.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(4.dp)
-        ) {
-            if (overflows) {
-                DesktopScrollArrowButton(
-                    isLeft = true,
-                    enabled = scrollState.value > 0,
-                    onClick = { scope.launch { scrollState.animateScrollTo((scrollState.value - 180).coerceAtLeast(0)) } }
-                )
-            }
-
+        val isCompact = maxWidth < 680.dp
+        Column(modifier = Modifier.fillMaxWidth()) {
+            // 1. Horizontal Tool Ribbon with automatic wheel-scroll & overflow chevrons
             Row(
                 modifier = Modifier
-                    .weight(1f)
-                    .horizontalWheelScroll(scrollState)
-                    .horizontalScroll(scrollState),
-                horizontalArrangement = Arrangement.spacedBy(5.dp),
+                    .fillMaxWidth()
+                    .padding(horizontal = Dimens.CommandBarInset, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                if (overflows) {
+                    DesktopScrollArrowButton(
+                        isLeft = true,
+                        enabled = scrollState.value > 0,
+                        onClick = { scope.launch { scrollState.animateScrollTo((scrollState.value - 180).coerceAtLeast(0)) } }
+                    )
+                }
+
+                Row(
+                    modifier = Modifier
+                        .weight(1f)
+                        .horizontalWheelScroll(scrollState)
+                        .horizontalScroll(scrollState),
+                    horizontalArrangement = Arrangement.spacedBy(5.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    ToolRibbonPill(
+                        icon = LogicIcons.Roam,
+                        label = "ROAM",
+                        shortcut = if (isCompact) null else "V",
+                        isActive = boardMode == BoardMode.ROAM,
+                        onClick = { onModeChange(BoardMode.ROAM) }
+                    )
+
+                    ToolRibbonPill(
+                        icon = LogicIcons.WireDraw,
+                        label = "WIRE",
+                        shortcut = if (isCompact) null else "W",
+                        isActive = boardMode == BoardMode.WIRE_DRAW,
+                        onClick = {
+                            onModeChange(
+                                if (boardMode == BoardMode.WIRE_DRAW) BoardMode.ROAM else BoardMode.WIRE_DRAW
+                            )
+                        }
+                    )
+
+                    ToolRibbonPill(
+                        icon = LogicIcons.WireSelect,
+                        label = "SELECT",
+                        shortcut = if (isCompact) null else "S",
+                        isActive = boardMode == BoardMode.WIRE_SELECT,
+                        onClick = {
+                            onModeChange(
+                                if (boardMode == BoardMode.WIRE_SELECT) BoardMode.ROAM else BoardMode.WIRE_SELECT
+                            )
+                        }
+                    )
+
+                    ToolRibbonPill(
+                        icon = LogicIcons.Chip,
+                        label = "ICs",
+                        shortcut = if (isCompact) null else "C",
+                        isActive = false,
+                        onClick = { onAction(ToolAction.CHIPS) }
+                    )
+
+                    ToolRibbonPill(
+                        icon = LogicIcons.Scope,
+                        label = "SCOPE",
+                        shortcut = if (isCompact) null else "O",
+                        isActive = false,
+                        onClick = { onAction(ToolAction.SCOPE) }
+                    )
+
+                    ToolRibbonPill(
+                        icon = LogicIcons.Schematic,
+                        label = "LOGIC",
+                        shortcut = if (isCompact) null else "D",
+                        isActive = diagramActive,
+                        onClick = { onAction(ToolAction.DIAGRAM) }
+                    )
+
+                    ToolRibbonPill(
+                        icon = LogicIcons.Labs,
+                        label = "LABS",
+                        shortcut = if (isCompact) null else "B",
+                        isActive = false,
+                        onClick = { onAction(ToolAction.LABS) }
+                    )
+
+                    ToolRibbonPill(
+                        icon = LogicIcons.FitBoard,
+                        label = "FIT",
+                        shortcut = if (isCompact) null else "F",
+                        isActive = false,
+                        onClick = { onAction(ToolAction.FIT_VIEW) }
+                    )
+
+                    ToolRibbonPill(
+                        icon = LogicIcons.Rotate,
+                        label = "ROTATE",
+                        shortcut = if (isCompact) null else "R",
+                        isActive = false,
+                        onClick = { onAction(ToolAction.ROTATE) }
+                    )
+
+                    ToolRibbonPill(
+                        icon = LogicIcons.Trash,
+                        label = deleteLabel,
+                        shortcut = if (isCompact) null else "Del",
+                        isActive = false,
+                        onClick = { onAction(ToolAction.CLEAR) }
+                    )
+                }
+
+                if (overflows) {
+                    DesktopScrollArrowButton(
+                        isLeft = false,
+                        enabled = scrollState.value < scrollState.maxValue,
+                        onClick = { scope.launch { scrollState.animateScrollTo((scrollState.value + 180).coerceAtMost(scrollState.maxValue)) } }
+                    )
+                }
+            }
+
+            // 2. Slim Telemetry Strip
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(ChassisBase)
+                    .horizontalWheelScroll(statusScrollState)
+                    .horizontalScroll(statusScrollState)
+                    .padding(horizontal = Dimens.CommandBarInset + 2.dp, vertical = 3.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                ToolRibbonPill(
-                    icon = LogicIcons.Roam,
-                    label = "ROAM",
-                    shortcut = "V",
-                    isActive = boardMode == BoardMode.ROAM,
-                    onClick = { onModeChange(BoardMode.ROAM) }
+                Text(
+                    text = "ELEMENTS: $chipCount ICs, $wireCount WIRES",
+                    style = LogicLabsType.SwitchPlate,
+                    color = AccentCyan,
+                    softWrap = false
                 )
-
-                ToolRibbonPill(
-                    icon = LogicIcons.WireDraw,
-                    label = "WIRE",
-                    shortcut = "W",
-                    isActive = boardMode == BoardMode.WIRE_DRAW,
-                    onClick = {
-                        onModeChange(
-                            if (boardMode == BoardMode.WIRE_DRAW) BoardMode.ROAM else BoardMode.WIRE_DRAW
-                        )
-                    }
+                Text(
+                    text = "MODE: $simulationModeLabel",
+                    style = LogicLabsType.SwitchPlate,
+                    color = AmberCore,
+                    softWrap = false
                 )
-
-                ToolRibbonPill(
-                    icon = LogicIcons.WireSelect,
-                    label = "SELECT",
-                    shortcut = "S",
-                    isActive = boardMode == BoardMode.WIRE_SELECT,
-                    onClick = {
-                        onModeChange(
-                            if (boardMode == BoardMode.WIRE_SELECT) BoardMode.ROAM else BoardMode.WIRE_SELECT
-                        )
-                    }
+                Text(
+                    text = "ZOOM: $zoomPercent%",
+                    style = LogicLabsType.SwitchPlate,
+                    color = if (zoomPercent > 102) AccentCyan else TextSecondary,
+                    softWrap = false
                 )
-
-                ToolRibbonPill(
-                    icon = LogicIcons.Chip,
-                    label = "ICs",
-                    shortcut = "C",
-                    isActive = false,
-                    onClick = { onAction(ToolAction.CHIPS) }
-                )
-
-                ToolRibbonPill(
-                    icon = LogicIcons.Scope,
-                    label = "SCOPE",
-                    shortcut = "O",
-                    isActive = false,
-                    onClick = { onAction(ToolAction.SCOPE) }
-                )
-
-                ToolRibbonPill(
-                    icon = LogicIcons.Schematic,
-                    label = "LOGIC",
-                    shortcut = "D",
-                    isActive = diagramActive,
-                    onClick = { onAction(ToolAction.DIAGRAM) }
-                )
-
-                ToolRibbonPill(
-                    icon = LogicIcons.Labs,
-                    label = "LABS",
-                    shortcut = "B",
-                    isActive = false,
-                    onClick = { onAction(ToolAction.LABS) }
-                )
-
-                ToolRibbonPill(
-                    icon = LogicIcons.FitBoard,
-                    label = "FIT",
-                    shortcut = "F",
-                    isActive = false,
-                    onClick = { onAction(ToolAction.FIT_VIEW) }
-                )
-
-                ToolRibbonPill(
-                    icon = LogicIcons.Rotate,
-                    label = "ROTATE",
-                    shortcut = "R",
-                    isActive = false,
-                    onClick = { onAction(ToolAction.ROTATE) }
-                )
-
-                ToolRibbonPill(
-                    icon = LogicIcons.Trash,
-                    label = deleteLabel,
-                    shortcut = "Del",
-                    isActive = false,
-                    onClick = { onAction(ToolAction.CLEAR) }
+                Text(
+                    text = if (isCompact) {
+                        "PINCH OR +/− TO ZOOM · DOUBLE-TAP IC FOR PINOUT"
+                    } else {
+                        "SCROLL / PINCH TO ZOOM · RIGHT-CLICK MENU · DOUBLE-CLICK IC · F1 KEYS"
+                    },
+                    style = LogicLabsType.SwitchPlate,
+                    color = TextTertiary,
+                    softWrap = false
                 )
             }
-
-            if (overflows) {
-                DesktopScrollArrowButton(
-                    isLeft = false,
-                    enabled = scrollState.value < scrollState.maxValue,
-                    onClick = { scope.launch { scrollState.animateScrollTo((scrollState.value + 180).coerceAtMost(scrollState.maxValue)) } }
-                )
-            }
-        }
-
-        // 2. Slim Telemetry Strip
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(ChassisBase)
-                .horizontalWheelScroll(statusScrollState)
-                .horizontalScroll(statusScrollState)
-                .padding(horizontal = Dimens.CommandBarInset + 2.dp, vertical = 3.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = "ELEMENTS: $chipCount ICs, $wireCount WIRES",
-                style = LogicLabsType.SwitchPlate,
-                color = AccentCyan,
-                softWrap = false
-            )
-            Text(
-                text = "MODE: $simulationModeLabel",
-                style = LogicLabsType.SwitchPlate,
-                color = AmberCore,
-                softWrap = false
-            )
-            Text(
-                text = "1 : 1 REALTIME",
-                style = LogicLabsType.SwitchPlate,
-                color = TextTertiary,
-                softWrap = false
-            )
-            Text(
-                text = "RIGHT-CLICK FOR MENU · SCROLL ZOOM · F1 CONTROLS",
-                style = LogicLabsType.SwitchPlate,
-                color = TextTertiary,
-                softWrap = false
-            )
         }
     }
 }

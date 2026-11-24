@@ -21,6 +21,7 @@ actual object AppPlatform {
     actual val standardStoragePathHint: String get() = DesktopPlatform.standardStoragePathHint
     actual val executableName: String get() = DesktopPlatform.executableName
     actual val canOpenStorageFolder: Boolean = true
+    actual val supportsFullscreen: Boolean = false
     actual val resizeHorizontalPointerIcon: PointerIcon =
         PointerIcon(Cursor.getPredefinedCursor(Cursor.E_RESIZE_CURSOR))
 
@@ -83,8 +84,43 @@ actual object AppPlatform {
         }
     }
 
+    actual fun exportPngSnapshot(
+        suggestedFileName: String,
+        pngBytes: ByteArray,
+        onComplete: (success: Boolean, message: String) -> Unit
+    ) {
+        ioScope.launch {
+            val chosen = DesktopPlatform.chooseSaveFile(
+                title = "Export Breadboard Diagram Snapshot (PNG)",
+                defaultFileName = suggestedFileName,
+                extension = "png",
+                description = "PNG Image (*.png)"
+            ) ?: return@launch
+
+            val ok = runCatching { chosen.writeBytes(pngBytes); true }.getOrDefault(false)
+            if (ok) {
+                DesktopPlatform.openFileInSystem(chosen)
+                onComplete(true, "Saved PNG snapshot: ${chosen.name}")
+            } else {
+                onComplete(false, "Could not write PNG image.")
+            }
+        }
+    }
+
     actual fun openStorageFolder(locationDisplay: String): Boolean =
         DesktopPlatform.openFolderInExplorer(File(locationDisplay))
 
     actual fun buildShareUrl(shareCode: String): String? = null
+
+    actual fun isFullscreen(): Boolean = false
+
+    actual fun toggleFullscreen(): Boolean = false
+
+    actual fun canInstallPwa(): Boolean = false
+
+    actual fun promptInstallPwa(onResult: (Boolean) -> Unit) = onResult(false)
+
+    actual fun canNativeShare(): Boolean = false
+
+    actual fun nativeShareUrl(title: String, text: String, url: String): Boolean = false
 }

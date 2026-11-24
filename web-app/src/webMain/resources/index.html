@@ -3,7 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-  <meta name="theme-color" content="#090D14" />
+  <meta id="ll-theme-color" name="theme-color" content="#090D14" />
+  <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Logic Labs" />
@@ -25,12 +26,14 @@
       touch-action: none;
       -webkit-user-select: none;
       user-select: none;
+      -webkit-tap-highlight-color: transparent;
     }
     #logiclabs-root {
       position: fixed;
       inset: 0;
       width: 100%;
       height: 100%;
+      touch-action: none;
     }
     #logiclabs-splash {
       position: fixed;
@@ -40,26 +43,34 @@
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      gap: 18px;
+      gap: 16px;
       background:
         radial-gradient(circle at 22% 18%, rgba(0, 217, 255, 0.14), transparent 46%),
         radial-gradient(circle at 82% 24%, rgba(255, 174, 0, 0.11), transparent 42%),
         linear-gradient(180deg, #0B101A 0%, #070A10 100%);
-      transition: opacity 0.25s ease, visibility 0.25s ease;
+      transition: opacity 0.24s ease, visibility 0.24s ease;
     }
+    #logiclabs-splash.light-splash {
+      background:
+        radial-gradient(circle at 22% 18%, rgba(0, 145, 215, 0.12), transparent 46%),
+        linear-gradient(180deg, #F4F7FB 0%, #E8EEF5 100%);
+      color: #0F172A;
+    }
+    #logiclabs-splash.light-splash .ll-title { color: #0F172A; }
+    #logiclabs-splash.light-splash .ll-sub { color: #475569; }
     #logiclabs-splash.hidden {
       opacity: 0;
       visibility: hidden;
       pointer-events: none;
     }
     .ll-logo-ring {
-      width: 72px;
-      height: 72px;
+      width: 74px;
+      height: 74px;
       border-radius: 18px;
       padding: 6px;
       background: rgba(16, 24, 38, 0.92);
-      border: 1px solid rgba(56, 224, 255, 0.45);
-      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.55), 0 0 28px rgba(0, 217, 255, 0.15);
+      border: 1px solid rgba(56, 224, 255, 0.48);
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.50), 0 0 28px rgba(0, 217, 255, 0.16);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -79,22 +90,22 @@
       font-size: 13px;
       color: #94A3B8;
       text-align: center;
-      max-width: 340px;
+      max-width: 380px;
       padding: 0 16px;
     }
     .ll-bar-track {
-      width: 220px;
+      width: 236px;
       height: 4px;
       border-radius: 99px;
-      background: rgba(56, 74, 102, 0.45);
+      background: rgba(56, 74, 102, 0.42);
       overflow: hidden;
     }
     .ll-bar-fill {
-      width: 42%;
+      width: 44%;
       height: 100%;
       border-radius: 99px;
       background: linear-gradient(90deg, #00D9FF, #2EE88A);
-      animation: ll-slide 1.2s ease-in-out infinite;
+      animation: ll-slide 1.15s ease-in-out infinite;
     }
     @keyframes ll-slide {
       0% { transform: translateX(-110%); }
@@ -104,7 +115,7 @@
       font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
       font-size: 11px;
       color: #38E0FF;
-      background: rgba(12, 24, 36, 0.9);
+      background: rgba(12, 24, 36, 0.92);
       border: 1px solid rgba(56, 224, 255, 0.35);
       border-radius: 99px;
       padding: 4px 12px;
@@ -122,17 +133,60 @@
       text-align: center;
       line-height: 1.45;
     }
+    #ll-drop-overlay {
+      position: fixed;
+      inset: 16px;
+      z-index: 9500;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      border-radius: 18px;
+      border: 2px dashed #38E0FF;
+      background: rgba(9, 13, 20, 0.86);
+      backdrop-filter: blur(6px);
+      pointer-events: none;
+    }
+    #ll-drop-overlay.visible {
+      display: flex;
+    }
+    .ll-drop-card {
+      padding: 20px 28px;
+      border-radius: 14px;
+      background: rgba(16, 26, 42, 0.95);
+      border: 1px solid rgba(56, 224, 255, 0.55);
+      text-align: center;
+      box-shadow: 0 18px 48px rgba(0, 0, 0, 0.6);
+    }
+    .ll-drop-title {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      color: #38E0FF;
+      margin-bottom: 6px;
+    }
+    .ll-drop-sub {
+      font-size: 13px;
+      color: #CBD5E1;
+    }
   </style>
 </head>
 <body>
   <div id="logiclabs-root"></div>
+
+  <div id="ll-drop-overlay" aria-hidden="true">
+    <div class="ll-drop-card">
+      <div class="ll-drop-title">DROP CIRCUIT FILE TO LOAD ON BENCH</div>
+      <div class="ll-drop-sub">Supports .logiclabs.json projects &amp; LOGIC-... share files</div>
+    </div>
+  </div>
 
   <div id="logiclabs-splash" role="status" aria-live="polite">
     <div class="ll-logo-ring">
       <img src="./icons/icon-192.png" alt="Logic Labs" />
     </div>
     <div class="ll-title">LOGIC LABS</div>
-    <div class="ll-sub">Initializing K&amp;H IDL-800A Digital Trainer &amp; AD-200 Breadboard…</div>
+    <div id="ll-splash-sub" class="ll-sub">Initializing K&amp;H IDL-800A Digital Trainer &amp; AD-200 Breadboard…</div>
     <div class="ll-bar-track"><div class="ll-bar-fill"></div></div>
     <div id="ll-engine-badge" class="ll-engine-badge">DETECTING RUNTIME…</div>
     <div id="ll-error-box" class="ll-error"></div>
@@ -140,11 +194,39 @@
 
   <script>
     (function () {
+      var root = document.getElementById('logiclabs-root');
       var splash = document.getElementById('logiclabs-splash');
+      var splashSub = document.getElementById('ll-splash-sub');
       var badge = document.getElementById('ll-engine-badge');
       var errBox = document.getElementById('ll-error-box');
+      var dropOverlay = document.getElementById('ll-drop-overlay');
+      var themeMeta = document.getElementById('ll-theme-color');
+
+      // Match saved Cleanroom Daylight theme before first paint to prevent dark-flash on reload
+      try {
+        var savedPrefs = localStorage.getItem('logiclabs_settings') || '';
+        if (savedPrefs.indexOf('CLEANROOM') !== -1 && splash) {
+          splash.classList.add('light-splash');
+          document.body.style.background = '#EEF2F6';
+          if (themeMeta) themeMeta.setAttribute('content', '#EEF2F6');
+        }
+      } catch (e) {}
 
       window.__logicLabsOfflineReady = false;
+      window.__logicLabsDeferredInstallPrompt = null;
+
+      window.addEventListener('beforeinstallprompt', function (ev) {
+        ev.preventDefault();
+        window.__logicLabsDeferredInstallPrompt = ev;
+      });
+
+      window.addEventListener('appinstalled', function () {
+        window.__logicLabsDeferredInstallPrompt = null;
+      });
+
+      window.__setLogicLabsSplashStatus = function (msg) {
+        if (splashSub && msg) splashSub.textContent = msg;
+      };
 
       function warmOfflineCache() {
         if (!('serviceWorker' in navigator)) return;
@@ -181,30 +263,264 @@
         }).catch(function () {});
       }
 
+      function focusComposeCanvas() {
+        try {
+          var active = document.activeElement;
+          var tag = active && active.tagName;
+          if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+          var c = root && root.querySelector('canvas');
+          if (c && active !== c) {
+            c.focus({ preventScroll: true });
+          }
+        } catch (e) {}
+      }
+
       window.__hideLogicLabsSplash = function () {
         if (splash) splash.classList.add('hidden');
+        focusComposeCanvas();
+        setTimeout(focusComposeCanvas, 120);
         setTimeout(warmOfflineCache, 150);
       };
 
-      // Prevent browser Save Page / Help popups from hijacking CAD shortcuts Ctrl+S and F1
+      if (root) {
+        root.addEventListener('pointerdown', function () {
+          setTimeout(focusComposeCanvas, 0);
+        }, { passive: true });
+      }
+
+      // Browser URL / Title / Mobile Status-Bar Theme Sync + Hardware Back Button
+      var lastSyncedPath = '';
+      window.__logicLabsSyncBrowserState = function (pageTitle, querySuffix, pushHistory, themeHex) {
+        try {
+          if (pageTitle) document.title = pageTitle;
+          if (themeHex) {
+            if (themeMeta) themeMeta.setAttribute('content', themeHex);
+            document.body.style.background = themeHex;
+          }
+          var curParams = new URLSearchParams(window.location.search);
+          var engineParam = curParams.get('engine');
+          var nextParams = new URLSearchParams((querySuffix || '').replace(/^\?/, ''));
+          if (engineParam) nextParams.set('engine', engineParam);
+          var qs = nextParams.toString();
+          var targetUrl = window.location.pathname + (qs ? ('?' + qs) : '');
+          if (targetUrl !== lastSyncedPath && (window.location.pathname + window.location.search) !== targetUrl) {
+            lastSyncedPath = targetUrl;
+            if (pushHistory) {
+              window.history.pushState({ llBench: true }, '', targetUrl);
+            } else {
+              window.history.replaceState({}, '', targetUrl);
+            }
+          }
+        } catch (e) {}
+      };
+
+      window.addEventListener('popstate', function () {
+        if (typeof window.__logicLabsOnBrowserBack === 'function') {
+          window.__logicLabsOnBrowserBack();
+        }
+      });
+
+      // Prevent browser Save / Print / Help / Page-Zoom from hijacking CAD shortcuts (Ctrl+S, Ctrl+E, Ctrl+Shift+P, Ctrl +/-/0, F1)
       window.addEventListener('keydown', function (ev) {
-        if ((ev.ctrlKey || ev.metaKey) && (ev.key === 's' || ev.key === 'S')) {
+        focusComposeCanvas();
+        var mod = ev.ctrlKey || ev.metaKey;
+        var k = ev.key;
+        if (mod && (k === 's' || k === 'S' || k === 'e' || k === 'E' || k === '+' || k === '=' || k === '-' || k === '_' || k === '0')) {
           ev.preventDefault();
-        } else if (ev.key === 'F1') {
+        } else if (mod && ev.shiftKey && (k === 'p' || k === 'P')) {
+          ev.preventDefault();
+        } else if (k === 'F1') {
           ev.preventDefault();
         }
       }, { passive: false });
 
-      // Official WebAssembly GC feature probe (Chrome 119+, Firefox 120+, Edge 119+, Safari 18.2+)
+      // =========================================================================================
+      // Universal Multi-Touch Pinch, Trackpad Pinch (Ctrl+Wheel / GestureEvent) & Wheel Zoom Bridge
+      // =========================================================================================
+      var pinchActive = false;
+      var pinchClaimed = false;
+      var prevPinchDist = 0;
+      var prevPinchMx = 0;
+      var prevPinchMy = 0;
+      var postPinchGuardUntil = 0;
+
+      function dispatchZoomToCompose(zoomFactor, dxCss, dyCss, clientX, clientY) {
+        if (typeof window.__logicLabsDispatchZoom !== 'function' || !root) return false;
+        var rect = root.getBoundingClientRect();
+        var dpr = window.devicePixelRatio || 1;
+        var rx = (clientX - rect.left) * dpr;
+        var ry = (clientY - rect.top) * dpr;
+        return Boolean(window.__logicLabsDispatchZoom(zoomFactor, dxCss * dpr, dyCss * dpr, rx, ry));
+      }
+
+      if (root) {
+        root.addEventListener('touchstart', function (ev) {
+          if (ev.touches && ev.touches.length >= 2) {
+            var t0 = ev.touches[0], t1 = ev.touches[1];
+            var mx = (t0.clientX + t1.clientX) * 0.5;
+            var my = (t0.clientY + t1.clientY) * 0.5;
+            var dist = Math.hypot(t1.clientX - t0.clientX, t1.clientY - t0.clientY);
+            pinchClaimed = dispatchZoomToCompose(1.0, 0, 0, mx, my);
+            if (pinchClaimed) {
+              pinchActive = true;
+              prevPinchDist = dist;
+              prevPinchMx = mx;
+              prevPinchMy = my;
+              postPinchGuardUntil = performance.now() + 180;
+              ev.preventDefault();
+              ev.stopPropagation();
+            }
+          } else if (performance.now() < postPinchGuardUntil) {
+            ev.preventDefault();
+            ev.stopPropagation();
+          }
+        }, { capture: true, passive: false });
+
+        root.addEventListener('touchmove', function (ev) {
+          if (ev.touches && ev.touches.length >= 2) {
+            var t0 = ev.touches[0], t1 = ev.touches[1];
+            var mx = (t0.clientX + t1.clientX) * 0.5;
+            var my = (t0.clientY + t1.clientY) * 0.5;
+            var dist = Math.hypot(t1.clientX - t0.clientX, t1.clientY - t0.clientY);
+            if (!pinchActive) {
+              pinchClaimed = dispatchZoomToCompose(1.0, 0, 0, mx, my);
+              pinchActive = pinchClaimed;
+              prevPinchDist = dist;
+              prevPinchMx = mx;
+              prevPinchMy = my;
+            } else if (pinchClaimed && prevPinchDist > 4 && dist > 4) {
+              var factor = Math.min(1.45, Math.max(0.68, dist / prevPinchDist));
+              var dx = mx - prevPinchMx;
+              var dy = my - prevPinchMy;
+              dispatchZoomToCompose(factor, dx, dy, mx, my);
+              prevPinchDist = dist;
+              prevPinchMx = mx;
+              prevPinchMy = my;
+            }
+            if (pinchClaimed) {
+              postPinchGuardUntil = performance.now() + 180;
+              ev.preventDefault();
+              ev.stopPropagation();
+            }
+          } else if (pinchActive || performance.now() < postPinchGuardUntil) {
+            pinchActive = false;
+            pinchClaimed = false;
+            ev.preventDefault();
+            ev.stopPropagation();
+          }
+        }, { capture: true, passive: false });
+
+        var onTouchEnd = function (ev) {
+          if (pinchActive) {
+            if (!ev.touches || ev.touches.length < 2) {
+              pinchActive = false;
+              pinchClaimed = false;
+              postPinchGuardUntil = performance.now() + 160;
+            }
+            ev.preventDefault();
+            ev.stopPropagation();
+          } else if (performance.now() < postPinchGuardUntil) {
+            ev.preventDefault();
+            ev.stopPropagation();
+          }
+        };
+        root.addEventListener('touchend', onTouchEnd, { capture: true, passive: false });
+        root.addEventListener('touchcancel', onTouchEnd, { capture: true, passive: false });
+
+        // Safari macOS / iPadOS GestureEvent trackpad pinch support
+        var prevSafariScale = 1.0;
+        root.addEventListener('gesturestart', function (ev) {
+          prevSafariScale = ev.scale || 1.0;
+          if (dispatchZoomToCompose(1.0, 0, 0, ev.clientX || 0, ev.clientY || 0)) {
+            ev.preventDefault();
+            ev.stopPropagation();
+          }
+        }, { capture: true, passive: false });
+
+        root.addEventListener('gesturechange', function (ev) {
+          var s = ev.scale || 1.0;
+          var factor = prevSafariScale > 0 ? Math.min(1.4, Math.max(0.7, s / prevSafariScale)) : 1.0;
+          prevSafariScale = s;
+          if (dispatchZoomToCompose(factor, 0, 0, ev.clientX || 0, ev.clientY || 0)) {
+            ev.preventDefault();
+            ev.stopPropagation();
+          }
+        }, { capture: true, passive: false });
+      }
+
+      // Smooth wheel & laptop trackpad Ctrl+Wheel pinch zoom
+      window.addEventListener('wheel', function (ev) {
+        var isPinchWheel = ev.ctrlKey || ev.metaKey;
+        if (isPinchWheel) {
+          ev.preventDefault();
+        }
+        if (typeof window.__logicLabsDispatchZoom !== 'function') return;
+
+        var dy = ev.deltaY || 0;
+        if (ev.deltaMode === 1) dy *= 28;
+        else if (ev.deltaMode === 2) dy *= 320;
+        if (dy === 0) return;
+
+        var factor;
+        if (isPinchWheel) {
+          factor = Math.min(1.38, Math.max(0.72, Math.exp(-dy * 0.010)));
+        } else if (Math.abs(dy) >= 48) {
+          factor = dy < 0 ? 1.18 : (1 / 1.18);
+        } else {
+          factor = Math.min(1.22, Math.max(0.82, Math.exp(-dy * 0.0038)));
+        }
+
+        var handled = dispatchZoomToCompose(factor, 0, 0, ev.clientX, ev.clientY);
+        if (handled) {
+          ev.preventDefault();
+          ev.stopPropagation();
+        }
+      }, { capture: true, passive: false });
+
+      // =========================================================================================
+      // Drag-and-Drop .logiclabs.json Project Import Anywhere on Window
+      // =========================================================================================
+      var dragDepth = 0;
+      window.addEventListener('dragenter', function (ev) {
+        if (ev.dataTransfer && ev.dataTransfer.types && Array.from(ev.dataTransfer.types).indexOf('Files') !== -1) {
+          dragDepth++;
+          if (dropOverlay) dropOverlay.classList.add('visible');
+          ev.preventDefault();
+        }
+      });
+      window.addEventListener('dragover', function (ev) {
+        if (dragDepth > 0) ev.preventDefault();
+      });
+      window.addEventListener('dragleave', function () {
+        dragDepth = Math.max(0, dragDepth - 1);
+        if (dragDepth === 0 && dropOverlay) dropOverlay.classList.remove('visible');
+      });
+      window.addEventListener('drop', function (ev) {
+        dragDepth = 0;
+        if (dropOverlay) dropOverlay.classList.remove('visible');
+        if (!ev.dataTransfer || !ev.dataTransfer.files || !ev.dataTransfer.files.length) return;
+        ev.preventDefault();
+        var file = ev.dataTransfer.files[0];
+        if (!file) return;
+        var reader = new FileReader();
+        reader.onload = function () {
+          if (typeof window.__logicLabsOnDroppedJson === 'function') {
+            window.__logicLabsOnDroppedJson(file.name || 'circuit.json', String(reader.result || ''));
+          }
+        };
+        reader.readAsText(file);
+      });
+
+      // =========================================================================================
+      // Dual-Engine Smart Loader (WebAssembly GC Primary + Automatic JS IR Fallback)
+      // =========================================================================================
       function supportsWasmGC() {
         try {
           if (typeof WebAssembly !== 'object' || typeof WebAssembly.validate !== 'function') {
             return false;
           }
-          // Minimal WasmGC struct type module
           var gcProbe = new Uint8Array([0, 97, 115, 109, 1, 0, 0, 0, 1, 5, 1, 95, 1, 120, 0]);
           if (!WebAssembly.validate(gcProbe)) return false;
-          // Exception handling probe used by Kotlin/Wasm runtime
           var ehProbe = new Uint8Array([0, 97, 115, 109, 1, 0, 0, 0, 1, 4, 1, 96, 0, 0, 3, 2, 1, 0, 10, 8, 1, 6, 0, 6, 64, 25, 11, 11]);
           return WebAssembly.validate(ehProbe);
         } catch (e) {
@@ -241,9 +557,11 @@
       function bootJsFallback() {
         window.__logicLabsEngine = 'js';
         if (badge) badge.textContent = 'ENGINE · COMPATIBILITY JS + SKIA';
+        window.__setLogicLabsSplashStatus('Downloading Skia WebAssembly graphics runtime…');
         var skikoScript = document.createElement('script');
         skikoScript.src = './skiko.js';
         skikoScript.onload = function () {
+          window.__setLogicLabsSplashStatus('Starting Logic Labs Compatibility Engine…');
           loadScript('./logic-labs-js.js', 'ENGINE · COMPATIBILITY JS + SKIA', null);
         };
         skikoScript.onerror = function () {
@@ -259,6 +577,7 @@
 
       if (useWasm) {
         window.__logicLabsEngine = 'wasm';
+        window.__setLogicLabsSplashStatus('Loading WebAssembly GC + Skia CAD binary…');
         loadScript('./logic-labs-wasm.js', 'ENGINE · WEBASSEMBLY GC + SKIA', function () {
           bootJsFallback();
         });

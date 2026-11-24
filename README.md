@@ -124,30 +124,30 @@ Logic Labs Web is **100% binary-compatible** with Android & Desktop `LOGIC-...` 
 Press **`F1`** or tap **`?`** anywhere inside the app for the built-in interactive reference.
 
 <details open>
-<summary><strong>Touch &amp; Mouse Pointer Controls</strong></summary>
+<summary><strong>Touch, Trackpad &amp; Mouse Pointer Controls</strong></summary>
 
-| Action | PC Mouse | Phone / Tablet Touch |
+| Action | PC Mouse &amp; Laptop Trackpad | Phone / Tablet Touch |
 | :--- | :--- | :--- |
-| **Zoom breadboard** | `Scroll Wheel` (toward cursor) | **Two-finger Pinch** (or `−` / `+` buttons) |
-| **Pan breadboard** | `Middle-Drag`, `Space + Drag`, or `Left-Drag` in Roam | **Drag** on empty board / Two-finger drag |
+| **Zoom breadboard / schematic** | `Scroll Wheel`, **Two-Finger Trackpad Pinch**, or `Ctrl +` / `−` / `0` | **Two-Finger Pinch**, **Double-Tap Empty Board** (`2.2×`), or `−` / `+` HUD |
+| **Pan breadboard** | `Middle-Drag`, `Space + Drag`, or `Left-Drag` in Roam | **1-Finger Drag** on empty board / Two-finger pan |
 | **Draw jumper wire** | Click hole A → B or Click-Drag (Wire mode `W`) | Tap hole A → B or Drag (Wire mode) |
 | **Move IC / re-wire pin** | Drag IC body or wire endpoint | Drag IC body or wire endpoint |
 | **IC Pinout Inspector** | `Double-Click` any placed IC | `Double-Tap` any placed IC |
-| **2.2× Optical Loupe** | Hold `Alt` or press `L` | Tap `2.2×` button on canvas |
-| **Context menu / cancel** | `Right-Click` | Tap element + use top Context Ribbon |
+| **2.2× Optical Loupe** | Hold `Alt` or press `L` | Tap `2.2×` button on Zoom HUD |
+| **Quick I/O while collapsed** | Resizable right-hand IDL-800A rack | Tap **`HIDE ▼`** for slim `5V` + `S7..S0` + `L7..L0` strip (or drag handle to resize) |
 
 </details>
 
 <details>
-<summary><strong>Full Keyboard Shortcuts (PC &amp; Chromebook)</strong></summary>
+<summary><strong>Full Keyboard Shortcuts &amp; Web Exports (PC &amp; Chromebook)</strong></summary>
 
 | Category | Key(s) | Action |
 | :--- | :--- | :--- |
 | **Tools & Editing** | `W` / `V` / `S` / `R` / `M` / `Del` | Wire / Roam / Select / Rotate IC 180° / Manhattan Wire / Delete |
-| **History & View** | `Ctrl+Z` / `Ctrl+Y` / `F` / `+` / `-` / `L` | Undo / Redo / Fit board / Zoom In / Zoom Out / 2.2× Loupe |
+| **Zoom & Fullscreen** | `Ctrl +/-/0` · `F` · `+` / `-` · `L` · `F11` | Zoom In/Out/Reset · Fit board · 2.2× Loupe · **Fullscreen Mode** |
 | **IDL-800A Console** | `1..8` / `Q` / `E` / `P` / `K` / `.` | Data Switches `SW0..SW7` / Pulsers A & B / Power / Clock Run / Step |
-| **Instruments** | `C` / `B` / `O` / `D` / `F1` | 74xx Chips / 49 Labs / CRT Scope / Live Schematic / Controls Guide |
-| **Navigation** | `Ctrl+1..4` / `Ctrl+S` / `PgUp` `PgDn` | Switch Home tabs / Save circuit / Page scroll |
+| **Instruments** | `C` / `B` / `O` / `D` / `F5` / `F1` | 74xx Chips / 49 Labs / CRT Scope / Live Schematic / Verify / Help |
+| **Save, PNG & Drag-Drop** | `Ctrl+S` / `Ctrl+E` / `Ctrl+Shift+P` | Save project / Export `.json` / **Download High-DPI PNG** (or drop `.json` onto window) |
 
 </details>
 

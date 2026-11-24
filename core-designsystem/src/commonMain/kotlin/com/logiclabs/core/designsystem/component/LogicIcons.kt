@@ -667,6 +667,55 @@ object LogicIcons {
         }
     }
 
+    /** Fullscreen expand: four outward-pointing corner brackets. */
+    val Fullscreen: ImageVector by lazy {
+        icon("Fullscreen") {
+            stroked {
+                moveTo(4f, 9f); lineTo(4f, 4f); lineTo(9f, 4f)
+                moveTo(15f, 4f); lineTo(20f, 4f); lineTo(20f, 9f)
+                moveTo(20f, 15f); lineTo(20f, 20f); lineTo(15f, 20f)
+                moveTo(9f, 20f); lineTo(4f, 20f); lineTo(4f, 15f)
+            }
+        }
+    }
+
+    /** Fullscreen exit: four inward-pointing corner brackets. */
+    val FullscreenExit: ImageVector by lazy {
+        icon("FullscreenExit") {
+            stroked {
+                moveTo(4f, 9f); lineTo(9f, 9f); lineTo(9f, 4f)
+                moveTo(15f, 4f); lineTo(15f, 9f); lineTo(20f, 9f)
+                moveTo(20f, 15f); lineTo(15f, 15f); lineTo(15f, 20f)
+                moveTo(9f, 20f); lineTo(9f, 15f); lineTo(4f, 15f)
+            }
+        }
+    }
+
+    /** Camera / PNG snapshot: chassis frame with central aperture lens. */
+    val Camera: ImageVector by lazy {
+        icon("Camera") {
+            stroked {
+                moveTo(3.5f, 8f); lineTo(7.5f, 8f); lineTo(9.2f, 5.5f)
+                lineTo(14.8f, 5.5f); lineTo(16.5f, 8f); lineTo(20.5f, 8f)
+                lineTo(20.5f, 18.5f); lineTo(3.5f, 18.5f); close()
+                moveTo(12f, 10f)
+                arcToRelative(3.2f, 3.2f, 0f, true, true, -0.05f, 0f)
+                close()
+            }
+        }
+    }
+
+    /** Install offline PWA app: monitor/device frame with downward install arrow. */
+    val InstallApp: ImageVector by lazy {
+        icon("InstallApp") {
+            stroked {
+                moveTo(12f, 4f); lineTo(12f, 14f)
+                moveTo(8.5f, 10.5f); lineTo(12f, 14f); lineTo(15.5f, 10.5f)
+                moveTo(5f, 15.5f); lineTo(5f, 19f); lineTo(19f, 19f); lineTo(19f, 15.5f)
+            }
+        }
+    }
+
     // --- Aliases -------------------------------------------------------------
     // Same glyph, the name the call site naturally reaches for. `by lazy` above
     // means these cost one reference each, not a second ImageVector.

@@ -52,6 +52,7 @@ import com.logiclabs.core.designsystem.component.ChamferedPanel
 import com.logiclabs.core.designsystem.component.DesktopVerticalScrollbar
 import com.logiclabs.core.designsystem.component.LogicIcons
 import com.logiclabs.core.designsystem.component.TelemetryPill
+import com.logiclabs.core.designsystem.component.webNativeZoomTarget
 import com.logiclabs.core.designsystem.theme.AccentCyan
 import com.logiclabs.core.designsystem.theme.CanvasVignette
 import com.logiclabs.core.designsystem.theme.ChassisBevelHighlight
@@ -123,7 +124,8 @@ fun BooleanDiagramView(
     circuit: BreadboardCircuit,
     modifier: Modifier = Modifier,
     circuitVersion: Int = 0,
-    renderVersion: Int = 0
+    renderVersion: Int = 0,
+    zoomCaptureEnabled: Boolean = true
 ) {
     val density = LocalDensity.current.density
     val clipboard = LocalClipboardManager.current
@@ -141,7 +143,7 @@ fun BooleanDiagramView(
     var copiedKey by remember { mutableStateOf<String?>(null) }
 
     val minZoom = 0.35f * density
-    val maxZoom = 3.0f * density
+    val maxZoom = 3.5f * density
 
     fun fit() {
         val w = canvasW.toFloat()
@@ -164,6 +166,17 @@ fun BooleanDiagramView(
         panY = if (ch <= h) (h - ch) / 2f else panY.coerceIn(h - ch - slack, slack)
     }
 
+    fun applyZoomAround(factor: Float, pivotX: Float, pivotY: Float, dx: Float = 0f, dy: Float = 0f) {
+        val oldZ = scale
+        if (oldZ <= 0f) return
+        val newZ = (oldZ * factor).coerceIn(minZoom, maxZoom)
+        val k = newZ / oldZ
+        panX = pivotX - (pivotX - panX) * k + dx
+        panY = pivotY - (pivotY - panY) * k + dy
+        scale = newZ
+        clampPan()
+    }
+
     LaunchedEffect(layout, canvasW, canvasH) {
         if (canvasW > 0 && canvasH > 0 && fittedFor != layout) {
             fit()
@@ -182,6 +195,16 @@ fun BooleanDiagramView(
         DiagramHeader(
             stats = layout.stats,
             zoomDisplay = scale / density,
+            canZoomOut = scale > minZoom + 0.01f,
+            canZoomIn = scale < maxZoom - 0.01f,
+            onZoomOut = {
+                Haptics.tick()
+                applyZoomAround(1f / 1.25f, canvasW / 2f, canvasH / 2f)
+            },
+            onZoomIn = {
+                Haptics.tick()
+                applyZoomAround(1.25f, canvasW / 2f, canvasH / 2f)
+            },
             onFit = {
                 Haptics.tick()
                 fit()
@@ -207,6 +230,9 @@ fun BooleanDiagramView(
                             canvasW = it.width
                             canvasH = it.height
                         }
+                        .webNativeZoomTarget(enabled = zoomCaptureEnabled) { zoom, dx, dy, lx, ly ->
+                            applyZoomAround(zoom, lx, ly, dx, dy)
+                        }
                         .pointerInput(layout, density) {
                             awaitPointerEventScope {
                                 while (true) {
@@ -215,14 +241,8 @@ fun BooleanDiagramView(
                                         val ch = ev.changes.firstOrNull()
                                         val dy = ch?.scrollDelta?.y ?: 0f
                                         if (ch != null && dy != 0f) {
-                                            val oldZ = scale
                                             val factor = if (dy < 0f) 1.15f else 1f / 1.15f
-                                            val newZ = (oldZ * factor).coerceIn(minZoom, maxZoom)
-                                            val c = ch.position
-                                            panX = c.x - (c.x - panX) * (newZ / oldZ)
-                                            panY = c.y - (c.y - panY) * (newZ / oldZ)
-                                            scale = newZ
-                                            clampPan()
+                                            applyZoomAround(factor, ch.position.x, ch.position.y)
                                             ch.consume()
                                         }
                                     }
@@ -231,21 +251,13 @@ fun BooleanDiagramView(
                         }
                         .pointerInput(layout, density) {
                             detectTransformGestures { centroid, pan, zoomChange, _ ->
-                                val oldZ = scale
-                                val newZ = (oldZ * zoomChange).coerceIn(minZoom, maxZoom)
-                                panX = centroid.x - (centroid.x - panX) * (newZ / oldZ) + pan.x
-                                panY = centroid.y - (centroid.y - panY) * (newZ / oldZ) + pan.y
-                                scale = newZ
-                                clampPan()
+                                applyZoomAround(zoomChange, centroid.x, centroid.y, pan.x, pan.y)
                             }
                         }
                         .pointerInput(layout) {
                             detectTapGestures(onDoubleTap = { fit() })
                         }
                 ) {
-                    // Evaluating the version stamps is what makes a param change
-                    // recreate this lambda and invalidate the draw — the same
-                    // pattern as OscilloscopeView's redrawKey.
                     @Suppress("UNUSED_EXPRESSION") circuitVersion
                     @Suppress("UNUSED_EXPRESSION") renderVersion
                     drawDiagram(
@@ -281,41 +293,92 @@ fun BooleanDiagramView(
 private fun DiagramHeader(
     stats: DiagramStats,
     zoomDisplay: Float,
+    canZoomOut: Boolean,
+    canZoomIn: Boolean,
+    onZoomOut: () -> Unit,
+    onZoomIn: () -> Unit,
     onFit: () -> Unit
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = Dimens.Space3, vertical = Dimens.Space1),
-        horizontalArrangement = Arrangement.spacedBy(Dimens.Space2),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         TelemetryPill(label = "ICS", value = stats.chipCount.toString(), accent = AccentCyan)
         TelemetryPill(label = "UNITS", value = (stats.gateCount + stats.blockCount).toString(), accent = PhosphorCore)
         TelemetryPill(label = "NETS", value = stats.netCount.toString(), accent = ChassisSilkscreen)
         Spacer(Modifier.weight(1f))
-        Text(
-            text = "×${com.logiclabs.core.bridge.platform.formatFixed2(zoomDisplay)}",
-            style = LogicLabsType.TechnicalSm,
-            color = TextSecondary
-        )
-        IconButton(
-            onClick = onFit,
-            modifier = Modifier.size(Dimens.MinTouchTarget)
+
+        DiagramZoomButton(label = "−", enabled = canZoomOut, onClick = onZoomOut)
+        Box(
+            modifier = Modifier
+                .clip(RoundedCornerShape(Dimens.RadiusPill))
+                .background(SurfaceCard)
+                .border(Dimens.Hairline, ChassisDivider, RoundedCornerShape(Dimens.RadiusPill))
+                .clickable(onClick = onFit)
+                .padding(horizontal = 8.dp, vertical = 4.dp),
+            contentAlignment = Alignment.Center
         ) {
-            Icon(
-                imageVector = LogicIcons.FitBoard,
-                contentDescription = "Fit diagram to viewport",
-                tint = AccentCyan
+            Text(
+                text = "${kotlin.math.round(zoomDisplay * 100f).toInt()}%",
+                style = LogicLabsType.TechnicalXs,
+                color = AccentCyan,
+                maxLines = 1
+            )
+        }
+        DiagramZoomButton(label = "+", enabled = canZoomIn, onClick = onZoomIn)
+        Box(
+            modifier = Modifier
+                .clip(RoundedCornerShape(Dimens.RadiusPill))
+                .background(AccentCyan.copy(alpha = 0.14f))
+                .border(Dimens.Hairline, AccentCyan.copy(alpha = 0.55f), RoundedCornerShape(Dimens.RadiusPill))
+                .clickable(onClick = onFit)
+                .padding(horizontal = 10.dp, vertical = 4.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = "FIT",
+                style = LogicLabsType.TechnicalXs,
+                color = AccentCyan,
+                maxLines = 1
             )
         }
     }
 }
 
 @Composable
+private fun DiagramZoomButton(
+    label: String,
+    enabled: Boolean,
+    onClick: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .size(28.dp)
+            .clip(RoundedCornerShape(Dimens.RadiusPill))
+            .background(if (enabled) SurfaceCard else SurfaceCard.copy(alpha = 0.4f))
+            .border(
+                Dimens.Hairline,
+                if (enabled) AccentCyan.copy(alpha = 0.5f) else ChassisDivider,
+                RoundedCornerShape(Dimens.RadiusPill)
+            )
+            .then(if (enabled) Modifier.clickable(onClick = onClick) else Modifier),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = label,
+            style = LogicLabsType.TitleSm,
+            color = if (enabled) AccentCyan else TextTertiary.copy(alpha = 0.45f)
+        )
+    }
+}
+
+@Composable
 private fun GestureHint(modifier: Modifier = Modifier) {
     Text(
-        text = "DRAG TO PAN · SCROLL WHEEL TO ZOOM · DOUBLE-CLICK TO FIT",
+        text = "DRAG TO PAN · PINCH OR +/- TO ZOOM · DOUBLE-TAP TO FIT",
         style = LogicLabsType.SwitchPlate,
         color = TextTertiary,
         modifier = modifier.padding(bottom = Dimens.Space2)

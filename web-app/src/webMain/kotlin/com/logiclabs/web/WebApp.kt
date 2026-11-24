@@ -11,6 +11,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
@@ -25,6 +26,7 @@ import com.logiclabs.app.ui.navigation.DesktopDestination
 import com.logiclabs.app.ui.navigation.DesktopShellController
 import com.logiclabs.app.ui.navigation.LogicLabsNavHost
 import com.logiclabs.app.ui.screens.home.HomeTab
+import com.logiclabs.core.data.persistence.CircuitShareBytecode
 import com.logiclabs.core.data.settings.Settings
 import com.logiclabs.core.data.settings.ThemeMode
 import com.logiclabs.core.designsystem.theme.CanvasBackground
@@ -35,6 +37,19 @@ import com.logiclabs.feature.tools.courseware.ExperimentCatalog
 import com.logiclabs.feature.tools.feedback.Haptics
 import com.logiclabs.feature.tools.feedback.LocalConsoleSfx
 import com.logiclabs.feature.tools.feedback.rememberConsoleSfx
+import kotlinx.coroutines.launch
+
+internal expect fun webRegisterBrowserBridges(
+    onDroppedJson: (fileName: String, content: String) -> Unit,
+    onBrowserBack: () -> Boolean
+)
+
+internal expect fun webSyncBrowserState(
+    pageTitle: String,
+    querySuffix: String,
+    pushHistory: Boolean,
+    themeColorHex: String
+)
 
 /**
  * Parsed URL deep-link parameters supported by Logic Labs Web:
@@ -134,9 +149,22 @@ data class WebLaunchParams(
     }
 }
 
+private fun themeColorHexFor(theme: HardwareTheme): String = when (theme) {
+    HardwareTheme.CLEANROOM -> "#EEF2F6"
+    HardwareTheme.TITANIUM_FROST -> "#141A24"
+    HardwareTheme.AMBER_CRT -> "#110D07"
+    HardwareTheme.VINTAGE_BRITISH_LAB -> "#0B1612"
+    HardwareTheme.SOLARIZED_DARK -> "#00212B"
+    HardwareTheme.TOKYO_NIGHT -> "#16161E"
+    HardwareTheme.CYBERPUNK_NEON -> "#0D0818"
+    HardwareTheme.HP_SLATE -> "#11161D"
+    HardwareTheme.OBSIDIAN -> "#090D14"
+}
+
 @Composable
 fun LogicLabsWebRoot(launchParams: WebLaunchParams) {
     val container = remember { AppContainer() }
+    val scope = rememberCoroutineScope()
     val controller = remember {
         DesktopShellController().apply {
             launchParams.initialTab?.let { homeTab = it }
@@ -171,6 +199,47 @@ fun LogicLabsWebRoot(launchParams: WebLaunchParams) {
         launchParams.initialTheme?.let { container.settings.setThemeMode(it) }
     }
 
+    // Register drag-and-drop JSON import & browser Back button bridge
+    DisposableEffect(container, controller) {
+        webRegisterBrowserBridges(
+            onDroppedJson = { _, raw ->
+                val trimmed = raw.trim()
+                if (trimmed.startsWith(CircuitShareBytecode.PREFIX)) {
+                    Haptics.success()
+                    controller.openBench(BenchRequest.ImportCode(trimmed))
+                } else {
+                    scope.launch {
+                        val imported = container.projects.import(trimmed)
+                        if (imported != null) {
+                            Haptics.success()
+                            controller.openBench(BenchRequest.Project(imported.id))
+                        }
+                    }
+                }
+            },
+            onBrowserBack = {
+                when {
+                    controller.showControlsGuide -> {
+                        controller.showControlsGuide = false
+                        true
+                    }
+                    controller.destination is DesktopDestination.Bench -> {
+                        val actions = controller.benchActions
+                        if (actions != null) actions.requestLeaveBench()
+                        else controller.openHome()
+                        true
+                    }
+                    controller.destination is DesktopDestination.Settings -> {
+                        controller.openHome()
+                        true
+                    }
+                    else -> false
+                }
+            }
+        )
+        onDispose {}
+    }
+
     val settings by container.settings.settings.collectAsState(initial = Settings())
     val systemDark = isSystemInDarkTheme()
     val hardwareTheme = remember(settings.themeMode, systemDark) {
@@ -185,6 +254,47 @@ fun LogicLabsWebRoot(launchParams: WebLaunchParams) {
             ThemeMode.SOLARIZED_DARK -> HardwareTheme.SOLARIZED_DARK
             ThemeMode.VINTAGE_BRITISH_LAB -> HardwareTheme.VINTAGE_BRITISH_LAB
             ThemeMode.TITANIUM_FROST -> HardwareTheme.TITANIUM_FROST
+        }
+    }
+
+    // Sync browser tab title, URL query state, and mobile status-bar theme-color
+    LaunchedEffect(controller.destination, controller.homeTab, hardwareTheme) {
+        val hex = themeColorHexFor(hardwareTheme)
+        when (val dest = controller.destination) {
+            DesktopDestination.Splash -> Unit
+            DesktopDestination.Home -> {
+                val tabParam = when (controller.homeTab) {
+                    HomeTab.PROJECTS -> ""
+                    HomeTab.COURSEWORK -> "?tab=coursework"
+                    HomeTab.REFERENCE -> "?tab=ics"
+                    HomeTab.SETTINGS -> "?tab=settings"
+                }
+                val tabTitle = when (controller.homeTab) {
+                    HomeTab.PROJECTS -> "Logic Labs — IDL-800A Digital Logic Workstation"
+                    HomeTab.COURSEWORK -> "49 Guided Labs — Logic Labs"
+                    HomeTab.REFERENCE -> "74xx TTL IC Datasheets — Logic Labs"
+                    HomeTab.SETTINGS -> "Settings — Logic Labs"
+                }
+                webSyncBrowserState(tabTitle, tabParam, pushHistory = false, themeColorHex = hex)
+            }
+            is DesktopDestination.Bench -> {
+                when (val req = dest.request) {
+                    is BenchRequest.Lab -> {
+                        val lab = ExperimentCatalog.findById(req.labId)
+                        val title = if (lab != null) "${lab.title} — Logic Labs" else "Workbench — Logic Labs"
+                        webSyncBrowserState(title, "?lab=${req.labId}", pushHistory = true, themeColorHex = hex)
+                    }
+                    is BenchRequest.ImportCode -> {
+                        webSyncBrowserState("Shared Circuit — Logic Labs", "?circuit=${req.code}", pushHistory = true, themeColorHex = hex)
+                    }
+                    else -> {
+                        webSyncBrowserState("Breadboard Workbench — Logic Labs", "", pushHistory = true, themeColorHex = hex)
+                    }
+                }
+            }
+            DesktopDestination.Settings -> {
+                webSyncBrowserState("Settings — Logic Labs", "?tab=settings", pushHistory = false, themeColorHex = hex)
+            }
         }
     }
 
@@ -220,6 +330,10 @@ fun LogicLabsWebRoot(launchParams: WebLaunchParams) {
                         when {
                             ev.key == Key.F1 -> {
                                 controller.showControlsGuide = !controller.showControlsGuide
+                                true
+                            }
+                            ev.key == Key.F11 -> {
+                                com.logiclabs.app.platform.AppPlatform.toggleFullscreen()
                                 true
                             }
                             ctrl && ev.key == Key.One && controller.destination == DesktopDestination.Home -> {

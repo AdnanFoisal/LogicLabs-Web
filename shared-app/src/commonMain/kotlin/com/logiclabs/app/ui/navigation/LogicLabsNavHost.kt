@@ -127,7 +127,8 @@ fun LogicLabsNavHost(
                     container = container,
                     onNavigateHome = { controller.openHome() },
                     onOpenControlsGuide = { controller.showControlsGuide = true },
-                    onRegisterMenuActions = { actions -> controller.benchActions = actions }
+                    onRegisterMenuActions = { actions -> controller.benchActions = actions },
+                    externalModalOpen = controller.showControlsGuide
                 )
             }
 

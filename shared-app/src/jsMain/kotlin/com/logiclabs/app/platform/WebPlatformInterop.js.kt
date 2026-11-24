@@ -113,3 +113,62 @@ internal actual fun webPlatformBasePageUrl(): String =
     js("window.location.origin + window.location.pathname").unsafeCast<String>()
 
 internal actual fun webPlatformEngineLabel(): String = "JS"
+
+internal actual fun webPlatformSupportsFullscreen(): Boolean =
+    js("Boolean(document.fullscreenEnabled || document.webkitFullscreenEnabled)").unsafeCast<Boolean>()
+
+internal actual fun webPlatformIsFullscreen(): Boolean =
+    js("Boolean(document.fullscreenElement || document.webkitFullscreenElement)").unsafeCast<Boolean>()
+
+internal actual fun webPlatformToggleFullscreen(): Boolean {
+    return js("""
+    (function() {
+      try {
+        var el = document.documentElement;
+        if (document.fullscreenElement || document.webkitFullscreenElement) {
+          if (document.exitFullscreen) document.exitFullscreen().catch(function(){});
+          else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+          return false;
+        }
+        if (el.requestFullscreen) { el.requestFullscreen().catch(function(){}); return true; }
+        if (el.webkitRequestFullscreen) { el.webkitRequestFullscreen(); return true; }
+        return false;
+      } catch (e) { return false; }
+    })()
+    """).unsafeCast<Boolean>()
+}
+
+internal actual fun webPlatformCanInstallPwa(): Boolean =
+    js("Boolean(window.__logicLabsDeferredInstallPrompt)").unsafeCast<Boolean>()
+
+internal actual fun webPlatformPromptInstallPwa(onResult: (Boolean) -> Unit) {
+    val cb: (Boolean) -> Unit = onResult
+    js("""
+    (function(callback) {
+      var p = window.__logicLabsDeferredInstallPrompt;
+      if (!p) { callback(false); return; }
+      try {
+        p.prompt();
+        p.userChoice.then(function(choice) {
+          window.__logicLabsDeferredInstallPrompt = null;
+          callback(Boolean(choice && choice.outcome === 'accepted'));
+        }).catch(function() { callback(false); });
+      } catch (e) { callback(false); }
+    })(cb)
+    """)
+}
+
+internal actual fun webPlatformCanNativeShare(): Boolean =
+    js("Boolean(navigator.share)").unsafeCast<Boolean>()
+
+internal actual fun webPlatformNativeShareUrl(title: String, text: String, url: String): Boolean {
+    return js("""
+    (function(ti, tx, u) {
+      try {
+        if (!navigator.share) return false;
+        navigator.share({ title: ti, text: tx, url: u }).catch(function(){});
+        return true;
+      } catch (e) { return false; }
+    })(title, text, url)
+    """).unsafeCast<Boolean>()
+}

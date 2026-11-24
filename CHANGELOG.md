@@ -6,6 +6,26 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ---
 
+## [1.3.0] — 2026-11-23
+
+### Fixed & Upgraded — Universal Multi-Device Zoom & Web Workstation Polish
+- **Universal Pinch, Trackpad, Mouse Wheel & Keyboard Zoom (`ViewportZoomBridge` + `index.html`):**
+  - Fixed **two-finger pinch-to-zoom on Android & iOS phones/tablets** by bridging multi-finger `TouchEvent.touches` centroids & distances directly into `BreadboardCanvas` and `BooleanDiagramView` at 60–120 Hz (bypassing Compose Web 1.7.0's single-finger `changedTouches` limitation).
+  - Added smooth **laptop trackpad pinch (`Ctrl + Wheel`)** and **macOS/iPadOS Safari `GestureEvent` (`gesturechange`)** support while preventing browser page-zoom hijacking.
+  - Added **`Ctrl + +` / `Ctrl + -` / `Ctrl + 0`** browser keyboard zoom shortcuts alongside `+` / `-` / `0` / `F`, plus **double-tap / double-click on empty breadboard** to toggle `100% Fit ↔ 220%` closeup at the tap point.
+  - Upgraded the floating **Breadboard & Schematic Zoom HUD** (`−`, live resettable **`100%`** readout, `+`, `FIT`, `2.2×` loupe) with clear min/max limit states and live `ZOOM: %` telemetry in `ToolRail`.
+- **Web Workstation Enhancements:**
+  - **Edge-to-Edge Fullscreen Mode (`F11` & Toolbar Button):** Instant fullscreen toggle in the Workbench `CommandBar`, `DesktopHomeSidebar`, and `MobileHomeTopBar`.
+  - **High-DPI Breadboard PNG Snapshot Export (`BreadboardSnapshotExporter` / `Ctrl+Shift+P`):** 1-click offscreen Skia PNG diagram download of the live wired breadboard from the Share & Board Actions dialogs.
+  - **Drag-and-Drop `.logiclabs.json` Import:** Drop any `.logiclabs.json` project or `LOGIC-...` file anywhere onto the browser window to load it straight onto the bench.
+  - **1-Click Offline PWA Install Prompt & Native Device Share Sheet:** Captures `beforeinstallprompt` for in-app PWA installation and integrates `navigator.share` on mobile/macOS browsers.
+  - **Live Browser URL, Tab Title, Status-Bar Theme & Back-Button Sync:** Navigating labs/tabs updates the URL and mobile `<meta name="theme-color">`, and pressing Browser/Android Back returns safely to the Home Hub.
+- **Mobile Workbench UX Upgrade:**
+  - Added **vertical drag-to-resize** on the mobile IDL-800A console drawer handle (`< 840 dp`) and an **interactive collapsed Quick-I/O Strip** (`5V ON/OFF` + tappable `S7..S0` switches paired with live `L7..L0` LEDs) so phone users can keep 80%+ screen height for wiring while toggling switches live.
+  - Made `ControlsGuideDialog` (`F1` / `?`) single-column responsive on narrow mobile screens.
+
+---
+
 ## [1.2.0] — 2026-11-23
 
 ### Added — Web Edition & Unified Kotlin Multiplatform Architecture

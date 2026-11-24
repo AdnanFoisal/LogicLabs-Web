@@ -81,7 +81,9 @@ fun CommandBar(
     onRedoClick: (() -> Unit)? = null,
     onControlsGuideClick: (() -> Unit)? = null,
     consoleCollapsed: Boolean = false,
-    onToggleConsoleClick: (() -> Unit)? = null
+    onToggleConsoleClick: (() -> Unit)? = null,
+    isFullscreen: Boolean = false,
+    onToggleFullscreenClick: (() -> Unit)? = null
 ) {
     val barScroll = rememberScrollState()
     GlassSurface(
@@ -221,11 +223,47 @@ fun CommandBar(
 
                 VerifyAction(passed = verificationPassed, onClick = onVerifyClick)
 
+                if (onToggleFullscreenClick != null && !isCompact) {
+                    Spacer(Modifier.width(Dimens.Space1))
+                    FullscreenActionButton(isFullscreen = isFullscreen, onClick = onToggleFullscreenClick)
+                }
+
                 if (onControlsGuideClick != null) {
                     Spacer(Modifier.width(if (isCompact) 2.dp else Dimens.Space1))
                     ControlsHelpButton(onClick = onControlsGuideClick)
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun FullscreenActionButton(isFullscreen: Boolean, onClick: () -> Unit) {
+    DesktopTooltip(
+        text = if (isFullscreen) "Exit Fullscreen Workstation" else "Enter Fullscreen Workstation",
+        shortcut = "F11"
+    ) {
+        Box(
+            modifier = Modifier
+                .size(34.dp)
+                .clip(CircleShape)
+                .background(if (isFullscreen) PhosphorCore.copy(alpha = 0.16f) else SurfaceCard)
+                .border(
+                    Dimens.Hairline,
+                    if (isFullscreen) PhosphorCore.copy(alpha = 0.65f) else SurfaceCardBorder,
+                    CircleShape
+                )
+                .desktopPointerHand()
+                .clickable(onClick = onClick)
+                .semantics { contentDescription = "Toggle fullscreen workstation" },
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = if (isFullscreen) LogicIcons.FullscreenExit else LogicIcons.Fullscreen,
+                contentDescription = null,
+                tint = if (isFullscreen) PhosphorCore else TextSecondary,
+                modifier = Modifier.size(16.dp)
+            )
         }
     }
 }

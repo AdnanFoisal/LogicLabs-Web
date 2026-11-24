@@ -57,6 +57,10 @@ internal fun BoxScope.BreadboardControls(
     onToggleWireMode: (() -> Unit)? = null
 ) {
     val loupeOn = state.loupeEnabled.value
+    val zoomPct = state.zoomPercent()
+    val canOut = state.canZoomOut()
+    val canIn = state.canZoomIn()
+
     GlassSurface(
         modifier = Modifier
             .align(Alignment.TopEnd)
@@ -64,17 +68,36 @@ internal fun BoxScope.BreadboardControls(
         shape = RoundedCornerShape(Dimens.RadiusPill)
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 6.dp, vertical = 4.dp),
+            modifier = Modifier.padding(horizontal = 6.dp, vertical = 5.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
-            DesktopTooltip(text = "Zoom out", shortcut = "-") {
-                ZoomPillButton(label = "−", contentDescription = "Zoom out (-)") {
+            DesktopTooltip(text = if (canOut) "Zoom out" else "At 100% full-board fit", shortcut = "−") {
+                ZoomPillButton(
+                    label = "−",
+                    contentDescription = "Zoom out (-)",
+                    enabled = canOut
+                ) {
                     state.nudgeZoom(1f / 1.25f)
                 }
             }
+            DesktopTooltip(text = "Current zoom — click to reset to 100% Fit", shortcut = "0") {
+                ZoomPillButton(
+                    label = "$zoomPct%",
+                    isLabel = true,
+                    wideLabel = true,
+                    highlighted = zoomPct > 102,
+                    contentDescription = "Zoom $zoomPct percent. Activate to reset fit."
+                ) {
+                    state.applyFit(mapper, circuit)
+                }
+            }
             DesktopTooltip(text = "Zoom in", shortcut = "+") {
-                ZoomPillButton(label = "+", contentDescription = "Zoom in (+)") {
+                ZoomPillButton(
+                    label = "+",
+                    contentDescription = "Zoom in (+)",
+                    enabled = canIn
+                ) {
                     state.nudgeZoom(1.25f)
                 }
             }
@@ -102,21 +125,45 @@ private fun ZoomPillButton(
     icon: androidx.compose.ui.graphics.vector.ImageVector? = null,
     contentDescription: String? = null,
     isLabel: Boolean = false,
+    wideLabel: Boolean = false,
     highlighted: Boolean = false,
+    enabled: Boolean = true,
     onClick: () -> Unit
 ) {
     val interaction = remember { MutableInteractionSource() }
+    val pillShape = RoundedCornerShape(Dimens.RadiusPill)
+    val widthDp = when {
+        wideLabel -> 52.dp
+        isLabel -> 42.dp
+        else -> 34.dp
+    }
     Box(
         modifier = Modifier
-            .size(if (isLabel) 42.dp else 30.dp, 28.dp)
-            .clip(RoundedCornerShape(Dimens.RadiusPill))
-            .background(if (highlighted) AccentCyan.copy(alpha = 0.25f) else SurfaceCard.copy(alpha = 0.78f))
-            .desktopPointerHand()
-            .clickable(
-                interactionSource = interaction,
-                indication = null,
-                role = Role.Button,
-                onClick = onClick
+            .size(widthDp, 30.dp)
+            .clip(pillShape)
+            .background(
+                when {
+                    !enabled -> SurfaceCard.copy(alpha = 0.38f)
+                    highlighted -> AccentCyan.copy(alpha = 0.22f)
+                    else -> SurfaceCard.copy(alpha = 0.85f)
+                }
+            )
+            .then(
+                if (highlighted && enabled) {
+                    Modifier.padding(0.dp)
+                } else Modifier
+            )
+            .then(
+                if (enabled) {
+                    Modifier
+                        .desktopPointerHand()
+                        .clickable(
+                            interactionSource = interaction,
+                            indication = null,
+                            role = Role.Button,
+                            onClick = onClick
+                        )
+                } else Modifier
             ),
         contentAlignment = Alignment.Center
     ) {
@@ -124,14 +171,20 @@ private fun ZoomPillButton(
             Icon(
                 imageVector = icon,
                 contentDescription = contentDescription,
-                tint = AccentCyan,
+                tint = if (enabled) AccentCyan else TextTertiary.copy(alpha = 0.45f),
                 modifier = Modifier.size(16.dp)
             )
         } else {
             Text(
                 text = label.orEmpty(),
-                style = if (isLabel) LogicLabsType.SwitchPlate else LogicLabsType.TitleMd,
-                color = if (highlighted) AccentCyan else if (isLabel) TextPrimary else AccentCyan
+                style = if (isLabel) LogicLabsType.TechnicalXs else LogicLabsType.TitleMd,
+                color = when {
+                    !enabled -> TextTertiary.copy(alpha = 0.42f)
+                    highlighted -> AccentCyan
+                    isLabel -> TextPrimary
+                    else -> AccentCyan
+                },
+                maxLines = 1
             )
         }
     }

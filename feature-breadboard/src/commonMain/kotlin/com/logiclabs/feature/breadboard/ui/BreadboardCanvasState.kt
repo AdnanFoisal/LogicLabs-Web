@@ -197,6 +197,35 @@ class BreadboardCanvasState {
         applyPinch(factor, Offset.Zero, centroid)
     }
 
+    /** Current zoom expressed relative to the whole-board fit floor (`100%` = full board fitted). */
+    fun zoomPercent(): Int {
+        val base = minZoom.value.coerceAtLeast(MIN_SCALE)
+        return kotlin.math.round((scale.value / base) * 100f).toInt().coerceIn(100, 999)
+    }
+
+    fun canZoomOut(): Boolean = scale.value > minZoom.value + 0.002f
+
+    fun canZoomIn(): Boolean = scale.value < MAX_SCALE - 0.002f
+
+    /**
+     * Toggles between `100%` Fit and a `2.2x` detail inspection zoom anchored at [screenPivot]
+     * when double-clicking or double-tapping empty breadboard space.
+     */
+    fun toggleQuickZoomAt(
+        screenPivot: Offset,
+        mapper: BreadboardGeometryMapper,
+        circuit: BreadboardCircuit? = null
+    ) {
+        val base = minZoom.value.coerceAtLeast(MIN_SCALE)
+        if (scale.value > base * 1.32f) {
+            applyFit(mapper, circuit)
+        } else {
+            val target = (base * 2.2f).coerceAtMost(MAX_SCALE)
+            val factor = target / scale.value.coerceAtLeast(MIN_SCALE)
+            applyPinch(factor, Offset.Zero, screenPivot)
+        }
+    }
+
     fun panBy(delta: Offset) {
         pan.value = clampPan(pan.value + delta, scale.value)
     }

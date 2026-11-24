@@ -1,4 +1,4 @@
-const CACHE_NAME = 'logic-labs-pwa-v1.1.3-web2';
+const CACHE_NAME = 'logic-labs-pwa-v1.3.0-web1';
 
 const CORE_ASSETS = [
   './',
