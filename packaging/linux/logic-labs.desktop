@@ -1,0 +1,18 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=Logic Labs
+GenericName=Digital Electronics Bench
+Comment=K&H IDL-800A Digital Logic Trainer & AD-200 Breadboard Workstation
+Exec=/usr/bin/logic-labs %U
+Icon=logic-labs
+Terminal=false
+Categories=Education;Electronics;Science;Development;
+Keywords=logic;digital;breadboard;74xx;ttl;circuit;simulator;idl-800a;electronics;
+StartupNotify=true
+StartupWMClass=com-logiclabs-app-MainKt
+Actions=software-render;
+
+[Desktop Action software-render]
+Name=Launch in Software Render Mode
+Exec=/usr/bin/logic-labs --software

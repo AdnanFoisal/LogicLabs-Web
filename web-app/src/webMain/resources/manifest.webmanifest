@@ -1,0 +1,26 @@
+{
+  "name": "Logic Labs — IDL-800A Digital Logic Workstation",
+  "short_name": "Logic Labs",
+  "description": "100% offline K&H IDL-800A Digital Logic Trainer & AD-200 Breadboard simulator with 14 TTL 74xx ICs, 49 guided labs, oscilloscope, and 2^N verifier.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#090D14",
+  "theme_color": "#090D14",
+  "categories": ["education", "utilities", "developer"],
+  "icons": [
+    {
+      "src": "./icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "./icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

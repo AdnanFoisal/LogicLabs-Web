@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#090D14" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Logic Labs" />
+  <meta name="description" content="Offline K&H IDL-800A Digital Logic Trainer & AD-200 Breadboard Simulator for browsers, phones, tablets, and PCs — 14 TTL 74xx ICs, 49 guided labs, oscilloscope, and 2^N verifier." />
+  <title>Logic Labs — IDL-800A Digital Logic Workstation</title>
+  <link rel="icon" type="image/png" href="./favicon.png" />
+  <link rel="apple-touch-icon" href="./icons/icon-192.png" />
+  <link rel="manifest" href="./manifest.webmanifest" />
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #090D14;
+      color: #F1F5F9;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, sans-serif;
+      overscroll-behavior: none;
+      touch-action: none;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+    #logiclabs-root {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+    }
+    #logiclabs-splash {
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 18px;
+      background:
+        radial-gradient(circle at 22% 18%, rgba(0, 217, 255, 0.14), transparent 46%),
+        radial-gradient(circle at 82% 24%, rgba(255, 174, 0, 0.11), transparent 42%),
+        linear-gradient(180deg, #0B101A 0%, #070A10 100%);
+      transition: opacity 0.25s ease, visibility 0.25s ease;
+    }
+    #logiclabs-splash.hidden {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
+    .ll-logo-ring {
+      width: 72px;
+      height: 72px;
+      border-radius: 18px;
+      padding: 6px;
+      background: rgba(16, 24, 38, 0.92);
+      border: 1px solid rgba(56, 224, 255, 0.45);
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.55), 0 0 28px rgba(0, 217, 255, 0.15);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .ll-logo-ring img {
+      width: 58px;
+      height: 58px;
+      border-radius: 12px;
+    }
+    .ll-title {
+      font-size: 24px;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      color: #F4F8FC;
+    }
+    .ll-sub {
+      font-size: 13px;
+      color: #94A3B8;
+      text-align: center;
+      max-width: 340px;
+      padding: 0 16px;
+    }
+    .ll-bar-track {
+      width: 220px;
+      height: 4px;
+      border-radius: 99px;
+      background: rgba(56, 74, 102, 0.45);
+      overflow: hidden;
+    }
+    .ll-bar-fill {
+      width: 42%;
+      height: 100%;
+      border-radius: 99px;
+      background: linear-gradient(90deg, #00D9FF, #2EE88A);
+      animation: ll-slide 1.2s ease-in-out infinite;
+    }
+    @keyframes ll-slide {
+      0% { transform: translateX(-110%); }
+      100% { transform: translateX(260%); }
+    }
+    .ll-engine-badge {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 11px;
+      color: #38E0FF;
+      background: rgba(12, 24, 36, 0.9);
+      border: 1px solid rgba(56, 224, 255, 0.35);
+      border-radius: 99px;
+      padding: 4px 12px;
+    }
+    .ll-error {
+      display: none;
+      max-width: 420px;
+      margin: 0 20px;
+      padding: 12px 16px;
+      border-radius: 10px;
+      background: rgba(127, 29, 29, 0.35);
+      border: 1px solid rgba(248, 113, 113, 0.55);
+      color: #FECACA;
+      font-size: 13px;
+      text-align: center;
+      line-height: 1.45;
+    }
+  </style>
+</head>
+<body>
+  <div id="logiclabs-root"></div>
+
+  <div id="logiclabs-splash" role="status" aria-live="polite">
+    <div class="ll-logo-ring">
+      <img src="./icons/icon-192.png" alt="Logic Labs" />
+    </div>
+    <div class="ll-title">LOGIC LABS</div>
+    <div class="ll-sub">Initializing K&amp;H IDL-800A Digital Trainer &amp; AD-200 Breadboard…</div>
+    <div class="ll-bar-track"><div class="ll-bar-fill"></div></div>
+    <div id="ll-engine-badge" class="ll-engine-badge">DETECTING RUNTIME…</div>
+    <div id="ll-error-box" class="ll-error"></div>
+  </div>
+
+  <script>
+    (function () {
+      var splash = document.getElementById('logiclabs-splash');
+      var badge = document.getElementById('ll-engine-badge');
+      var errBox = document.getElementById('ll-error-box');
+
+      window.__logicLabsOfflineReady = false;
+
+      function warmOfflineCache() {
+        if (!('serviceWorker' in navigator)) return;
+        navigator.serviceWorker.ready.then(function (reg) {
+          if (!reg.active) return;
+          var origin = window.location.origin;
+          var base = new URL('./', window.location.href).href;
+          var urls = [base, base + 'index.html'];
+          try {
+            var entries = performance.getEntriesByType('resource') || [];
+            for (var i = 0; i < entries.length; i++) {
+              var u = entries[i].name;
+              if (u && u.indexOf(origin) === 0 && urls.indexOf(u) === -1) {
+                urls.push(u);
+              }
+            }
+          } catch (e) {}
+          if (window.__logicLabsEngine === 'wasm') {
+            var wasmJs = base + 'logic-labs-wasm.js';
+            if (urls.indexOf(wasmJs) === -1) urls.push(wasmJs);
+          } else if (window.__logicLabsEngine === 'js') {
+            var skikoJs = base + 'skiko.js';
+            var appJs = base + 'logic-labs-js.js';
+            if (urls.indexOf(skikoJs) === -1) urls.push(skikoJs);
+            if (urls.indexOf(appJs) === -1) urls.push(appJs);
+          }
+          var channel = new MessageChannel();
+          channel.port1.onmessage = function (ev) {
+            if (ev.data && ev.data.ok) {
+              window.__logicLabsOfflineReady = true;
+            }
+          };
+          reg.active.postMessage({ type: 'CACHE_ASSETS', urls: urls }, [channel.port2]);
+        }).catch(function () {});
+      }
+
+      window.__hideLogicLabsSplash = function () {
+        if (splash) splash.classList.add('hidden');
+        setTimeout(warmOfflineCache, 150);
+      };
+
+      // Prevent browser Save Page / Help popups from hijacking CAD shortcuts Ctrl+S and F1
+      window.addEventListener('keydown', function (ev) {
+        if ((ev.ctrlKey || ev.metaKey) && (ev.key === 's' || ev.key === 'S')) {
+          ev.preventDefault();
+        } else if (ev.key === 'F1') {
+          ev.preventDefault();
+        }
+      }, { passive: false });
+
+      // Official WebAssembly GC feature probe (Chrome 119+, Firefox 120+, Edge 119+, Safari 18.2+)
+      function supportsWasmGC() {
+        try {
+          if (typeof WebAssembly !== 'object' || typeof WebAssembly.validate !== 'function') {
+            return false;
+          }
+          // Minimal WasmGC struct type module
+          var gcProbe = new Uint8Array([0, 97, 115, 109, 1, 0, 0, 0, 1, 5, 1, 95, 1, 120, 0]);
+          if (!WebAssembly.validate(gcProbe)) return false;
+          // Exception handling probe used by Kotlin/Wasm runtime
+          var ehProbe = new Uint8Array([0, 97, 115, 109, 1, 0, 0, 0, 1, 4, 1, 96, 0, 0, 3, 2, 1, 0, 10, 8, 1, 6, 0, 6, 64, 25, 11, 11]);
+          return WebAssembly.validate(ehProbe);
+        } catch (e) {
+          return false;
+        }
+      }
+
+      var params = new URLSearchParams(window.location.search);
+      var forced = (params.get('engine') || '').toLowerCase();
+      var useWasm = forced === 'wasm' ? true : (forced === 'js' ? false : supportsWasmGC());
+
+      function showFailure(msg) {
+        if (errBox) {
+          errBox.style.display = 'block';
+          errBox.textContent = msg;
+        }
+      }
+
+      function loadScript(src, label, onFallback) {
+        if (badge) badge.textContent = label;
+        var s = document.createElement('script');
+        s.src = src;
+        s.defer = true;
+        s.onerror = function () {
+          if (onFallback) {
+            onFallback();
+          } else {
+            showFailure('Unable to load Logic Labs engine (' + src + '). Please refresh or check your browser settings.');
+          }
+        };
+        document.body.appendChild(s);
+      }
+
+      function bootJsFallback() {
+        window.__logicLabsEngine = 'js';
+        if (badge) badge.textContent = 'ENGINE · COMPATIBILITY JS + SKIA';
+        var skikoScript = document.createElement('script');
+        skikoScript.src = './skiko.js';
+        skikoScript.onload = function () {
+          loadScript('./logic-labs-js.js', 'ENGINE · COMPATIBILITY JS + SKIA', null);
+        };
+        skikoScript.onerror = function () {
+          showFailure('Unable to load Skia Web runtime (./skiko.js). Please refresh your browser.');
+        };
+        document.body.appendChild(skikoScript);
+      }
+
+      // Register offline PWA Service Worker immediately so it activates before splash closes
+      if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {
+        navigator.serviceWorker.register('./sw.js', { scope: './' }).catch(function () {});
+      }
+
+      if (useWasm) {
+        window.__logicLabsEngine = 'wasm';
+        loadScript('./logic-labs-wasm.js', 'ENGINE · WEBASSEMBLY GC + SKIA', function () {
+          bootJsFallback();
+        });
+      } else {
+        bootJsFallback();
+      }
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,35 @@
+name: Multiplatform CI — JVM, WasmGC & JS
+
+on:
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  verify-all-targets:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Eclipse Temurin JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Cache Gradle packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ci-${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties', '**/libs.versions.toml') }}
+          restore-keys: |
+            ci-${{ runner.os }}-gradle-
+
+      - name: Run full JVM test & benchmark suite
+        run: ./gradlew :core-bridge:jvmTest :core-data:jvmTest :core-designsystem:jvmTest :feature-breadboard:jvmTest :feature-tools:jvmTest :core-testing:test :desktop-app:test --no-daemon
+
+      - name: Verify WasmGC, JS & Linux x64 builds
+        run: ./gradlew :web-app:assembleCombinedWebDist :desktop-app:linuxFatJar --no-daemon

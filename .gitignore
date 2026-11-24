@@ -1,0 +1,14 @@
+.gradle/
+.kotlin/
+build/
+**/build/
+dist/
+dist-cache/
+packaging/windows/LogicLabs.exe
+packaging/windows/*.res
+.idea/
+*.iml
+*.log
+local.properties
+.DS_Store
+Thumbs.db
