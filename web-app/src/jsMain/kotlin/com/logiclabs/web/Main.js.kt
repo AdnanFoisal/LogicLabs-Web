@@ -54,13 +54,13 @@ private suspend fun fetchFontBytesJs(url: String): ByteArray? = runCatching {
 
 @OptIn(ExperimentalComposeUiApi::class)
 fun main() {
-    val zoomCb: (Float, Float, Float, Float, Float) -> Boolean = { z, dx, dy, rx, ry ->
-        ViewportZoomRegistry.dispatchFromRoot(z, dx, dy, rx, ry)
+    val zoomCb: (Float, Float, Float, Float, Float, Boolean) -> Boolean = { z, dx, dy, rx, ry, allowFallback ->
+        ViewportZoomRegistry.dispatchFromRoot(z, dx, dy, rx, ry, allowFallback)
     }
     js("""
     (function(cb) {
-      window.__logicLabsDispatchZoom = function(z, dx, dy, rx, ry) {
-        return Boolean(cb(z, dx, dy, rx, ry));
+      window.__logicLabsDispatchZoom = function(z, dx, dy, rx, ry, allowFallback) {
+        return Boolean(cb(z, dx, dy, rx, ry, Boolean(allowFallback)));
       };
     })(zoomCb)
     """)

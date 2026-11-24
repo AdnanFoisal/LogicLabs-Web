@@ -35,6 +35,10 @@
       height: 100%;
       touch-action: none;
     }
+    #logiclabs-root canvas {
+      touch-action: none !important;
+      outline: none;
+    }
     #logiclabs-splash {
       position: fixed;
       inset: 0;
@@ -228,7 +232,7 @@
         if (splashSub && msg) splashSub.textContent = msg;
       };
 
-      var APP_ASSET_VER = '1.3.1';
+      var APP_ASSET_VER = '1.3.2';
 
       function warmOfflineCache() {
         if (!('serviceWorker' in navigator)) return;
@@ -322,22 +326,63 @@
         }
       });
 
+      var lastPointerX = (window.innerWidth || 1280) * 0.35;
+      var lastPointerY = (window.innerHeight || 720) * 0.52;
+
+      window.addEventListener('pointermove', function (ev) {
+        if (typeof ev.clientX === 'number' && typeof ev.clientY === 'number') {
+          lastPointerX = ev.clientX;
+          lastPointerY = ev.clientY;
+        }
+      }, { capture: true, passive: true });
+
+      window.addEventListener('mousemove', function (ev) {
+        if (typeof ev.clientX === 'number' && typeof ev.clientY === 'number') {
+          lastPointerX = ev.clientX;
+          lastPointerY = ev.clientY;
+        }
+      }, { capture: true, passive: true });
+
+      function dispatchZoomToCompose(zoomFactor, dxCss, dyCss, clientX, clientY, allowFallback) {
+        if (typeof window.__logicLabsDispatchZoom !== 'function' || !root) return false;
+        var canvas = root.querySelector('canvas');
+        var rect = (canvas || root).getBoundingClientRect();
+        var dpr = window.devicePixelRatio || 1;
+        var scaleX = (canvas && rect.width > 0 && canvas.width > 0) ? (canvas.width / rect.width) : dpr;
+        var scaleY = (canvas && rect.height > 0 && canvas.height > 0) ? (canvas.height / rect.height) : dpr;
+        var rx = (clientX - rect.left) * scaleX;
+        var ry = (clientY - rect.top) * scaleY;
+        return Boolean(window.__logicLabsDispatchZoom(zoomFactor, dxCss * scaleX, dyCss * scaleY, rx, ry, Boolean(allowFallback)));
+      }
+
       // Prevent browser Save / Print / Help / Page-Zoom from hijacking CAD shortcuts (Ctrl+S, Ctrl+E, Ctrl+Shift+P, Ctrl +/-/0, F1)
+      // Also routes Ctrl +/- (including Linux X11 touchegg/libinput-gestures touchpad pinch keystrokes) straight to cursor-anchored zoom!
       window.addEventListener('keydown', function (ev) {
         focusComposeCanvas();
+        var active = document.activeElement;
+        var isTextInput = active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA');
         var mod = ev.ctrlKey || ev.metaKey;
         var k = ev.key;
-        if (mod && (k === 's' || k === 'S' || k === 'e' || k === 'E' || k === '+' || k === '=' || k === '-' || k === '_' || k === '0')) {
+        if (mod && (k === '+' || k === '=' || k === '-' || k === '_')) {
+          ev.preventDefault();
+          if (!isTextInput) {
+            var zFactor = (k === '+' || k === '=') ? 1.22 : (1 / 1.22);
+            if (dispatchZoomToCompose(zFactor, 0, 0, lastPointerX, lastPointerY, true)) {
+              ev.stopPropagation();
+              return;
+            }
+          }
+        } else if (mod && (k === 's' || k === 'S' || k === 'e' || k === 'E' || k === '0')) {
           ev.preventDefault();
         } else if (mod && ev.shiftKey && (k === 'p' || k === 'P')) {
           ev.preventDefault();
         } else if (k === 'F1') {
           ev.preventDefault();
         }
-      }, { passive: false });
+      }, { capture: true, passive: false });
 
       // =========================================================================================
-      // Universal Multi-Touch Pinch, Trackpad Pinch (Ctrl+Wheel / GestureEvent) & Wheel Zoom Bridge
+      // Universal Multi-Touch Pinch, W3C Multi-Pointer, Trackpad Pinch (Ctrl+Wheel / GestureEvent) & Wheel Zoom Bridge
       // =========================================================================================
       var pinchActive = false;
       var pinchClaimed = false;
@@ -346,14 +391,12 @@
       var prevPinchMy = 0;
       var postPinchGuardUntil = 0;
 
-      function dispatchZoomToCompose(zoomFactor, dxCss, dyCss, clientX, clientY) {
-        if (typeof window.__logicLabsDispatchZoom !== 'function' || !root) return false;
-        var rect = root.getBoundingClientRect();
-        var dpr = window.devicePixelRatio || 1;
-        var rx = (clientX - rect.left) * dpr;
-        var ry = (clientY - rect.top) * dpr;
-        return Boolean(window.__logicLabsDispatchZoom(zoomFactor, dxCss * dpr, dyCss * dpr, rx, ry));
-      }
+      // W3C PointerEvent multi-finger tracking (for Windows/Linux hybrid laptops & Precision Touchpad pointer streams)
+      var activeTouchPointers = new Map();
+      var ptrPinchActive = false;
+      var prevPtrDist = 0;
+      var prevPtrMx = 0;
+      var prevPtrMy = 0;
 
       if (root) {
         root.addEventListener('touchstart', function (ev) {
@@ -362,7 +405,7 @@
             var mx = (t0.clientX + t1.clientX) * 0.5;
             var my = (t0.clientY + t1.clientY) * 0.5;
             var dist = Math.hypot(t1.clientX - t0.clientX, t1.clientY - t0.clientY);
-            pinchClaimed = dispatchZoomToCompose(1.0, 0, 0, mx, my);
+            pinchClaimed = dispatchZoomToCompose(1.0, 0, 0, mx, my, false);
             if (pinchClaimed) {
               pinchActive = true;
               prevPinchDist = dist;
@@ -385,7 +428,7 @@
             var my = (t0.clientY + t1.clientY) * 0.5;
             var dist = Math.hypot(t1.clientX - t0.clientX, t1.clientY - t0.clientY);
             if (!pinchActive) {
-              pinchClaimed = dispatchZoomToCompose(1.0, 0, 0, mx, my);
+              pinchClaimed = dispatchZoomToCompose(1.0, 0, 0, mx, my, false);
               pinchActive = pinchClaimed;
               prevPinchDist = dist;
               prevPinchMx = mx;
@@ -394,7 +437,7 @@
               var factor = Math.min(1.45, Math.max(0.68, dist / prevPinchDist));
               var dx = mx - prevPinchMx;
               var dy = my - prevPinchMy;
-              dispatchZoomToCompose(factor, dx, dy, mx, my);
+              dispatchZoomToCompose(factor, dx, dy, mx, my, false);
               prevPinchDist = dist;
               prevPinchMx = mx;
               prevPinchMy = my;
@@ -429,50 +472,125 @@
         root.addEventListener('touchend', onTouchEnd, { capture: true, passive: false });
         root.addEventListener('touchcancel', onTouchEnd, { capture: true, passive: false });
 
-        // Safari macOS / iPadOS GestureEvent trackpad pinch support
-        var prevSafariScale = 1.0;
-        root.addEventListener('gesturestart', function (ev) {
-          prevSafariScale = ev.scale || 1.0;
-          if (dispatchZoomToCompose(1.0, 0, 0, ev.clientX || 0, ev.clientY || 0)) {
-            ev.preventDefault();
-            ev.stopPropagation();
+        // W3C PointerEvent fallback when TouchEvent isn't handling multi-finger touch (e.g. desktop Linux/Windows touchpads & 2-in-1s)
+        root.addEventListener('pointerdown', function (ev) {
+          if (ev.pointerType !== 'touch' || pinchActive) return;
+          activeTouchPointers.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+          if (activeTouchPointers.size >= 2) {
+            var pts = Array.from(activeTouchPointers.values());
+            var mx = (pts[0].x + pts[1].x) * 0.5;
+            var my = (pts[0].y + pts[1].y) * 0.5;
+            var dist = Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y);
+            if (dispatchZoomToCompose(1.0, 0, 0, mx, my, true)) {
+              ptrPinchActive = true;
+              prevPtrDist = dist;
+              prevPtrMx = mx;
+              prevPtrMy = my;
+              ev.preventDefault();
+              ev.stopPropagation();
+            }
           }
-        }, { capture: true, passive: false });
+        }, { capture: true });
 
-        root.addEventListener('gesturechange', function (ev) {
-          var s = ev.scale || 1.0;
-          var factor = prevSafariScale > 0 ? Math.min(1.4, Math.max(0.7, s / prevSafariScale)) : 1.0;
-          prevSafariScale = s;
-          if (dispatchZoomToCompose(factor, 0, 0, ev.clientX || 0, ev.clientY || 0)) {
-            ev.preventDefault();
-            ev.stopPropagation();
+        root.addEventListener('pointermove', function (ev) {
+          if (ev.pointerType !== 'touch' || !activeTouchPointers.has(ev.pointerId)) return;
+          activeTouchPointers.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+          if (pinchActive) return;
+          if (activeTouchPointers.size >= 2) {
+            var pts = Array.from(activeTouchPointers.values());
+            var mx = (pts[0].x + pts[1].x) * 0.5;
+            var my = (pts[0].y + pts[1].y) * 0.5;
+            var dist = Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y);
+            if (!ptrPinchActive) {
+              ptrPinchActive = dispatchZoomToCompose(1.0, 0, 0, mx, my, true);
+              prevPtrDist = dist;
+              prevPtrMx = mx;
+              prevPtrMy = my;
+            } else if (prevPtrDist > 4 && dist > 4) {
+              var factor = Math.min(1.45, Math.max(0.68, dist / prevPtrDist));
+              dispatchZoomToCompose(factor, mx - prevPtrMx, my - prevPtrMy, mx, my, true);
+              prevPtrDist = dist;
+              prevPtrMx = mx;
+              prevPtrMy = my;
+            }
+            if (ptrPinchActive) {
+              ev.preventDefault();
+              ev.stopPropagation();
+            }
           }
-        }, { capture: true, passive: false });
+        }, { capture: true });
+
+        var onPtrEnd = function (ev) {
+          activeTouchPointers.delete(ev.pointerId);
+          if (activeTouchPointers.size < 2) {
+            ptrPinchActive = false;
+          }
+        };
+        root.addEventListener('pointerup', onPtrEnd, { capture: true });
+        root.addEventListener('pointercancel', onPtrEnd, { capture: true });
       }
+
+      // Safari macOS / iPadOS GestureEvent trackpad pinch support (uses tracked pointer + active-viewport fallback)
+      var prevSafariScale = 1.0;
+      window.addEventListener('gesturestart', function (ev) {
+        prevSafariScale = ev.scale || 1.0;
+        var gx = (typeof ev.clientX === 'number' && ev.clientX > 0) ? ev.clientX : lastPointerX;
+        var gy = (typeof ev.clientY === 'number' && ev.clientY > 0) ? ev.clientY : lastPointerY;
+        if (dispatchZoomToCompose(1.0, 0, 0, gx, gy, true)) {
+          ev.preventDefault();
+          ev.stopPropagation();
+        }
+      }, { capture: true, passive: false });
+
+      window.addEventListener('gesturechange', function (ev) {
+        var s = ev.scale || 1.0;
+        var factor = prevSafariScale > 0 ? Math.min(1.45, Math.max(0.68, s / prevSafariScale)) : 1.0;
+        prevSafariScale = s;
+        var gx = (typeof ev.clientX === 'number' && ev.clientX > 0) ? ev.clientX : lastPointerX;
+        var gy = (typeof ev.clientY === 'number' && ev.clientY > 0) ? ev.clientY : lastPointerY;
+        if (dispatchZoomToCompose(factor, 0, 0, gx, gy, true)) {
+          ev.preventDefault();
+          ev.stopPropagation();
+        }
+      }, { capture: true, passive: false });
 
       // Smooth wheel & laptop trackpad Ctrl+Wheel pinch zoom
       window.addEventListener('wheel', function (ev) {
-        var isPinchWheel = ev.ctrlKey || ev.metaKey;
+        var isPinchWheel = Boolean(ev.ctrlKey || ev.metaKey);
         if (isPinchWheel) {
           ev.preventDefault();
         }
         if (typeof window.__logicLabsDispatchZoom !== 'function') return;
 
-        var dy = ev.deltaY || 0;
+        var dy = Number(ev.deltaY) || 0;
+        if (dy === 0 && isPinchWheel) {
+          dy = Number(ev.deltaX) || 0;
+        }
         if (ev.deltaMode === 1) dy *= 28;
         else if (ev.deltaMode === 2) dy *= 320;
         if (dy === 0) return;
 
         var factor;
         if (isPinchWheel) {
-          factor = Math.min(1.38, Math.max(0.72, Math.exp(-dy * 0.010)));
+          if (Math.abs(dy) >= 48) {
+            // Discrete Ctrl + Mouse Wheel or Linux X11 touchegg Ctrl+Button4/5 step
+            factor = dy < 0 ? 1.20 : (1 / 1.20);
+          } else {
+            // High-frequency Precision Touchpad / Wayland / macOS fractional deltaY pinch stream
+            factor = Math.min(1.45, Math.max(0.68, Math.exp(-dy * 0.025)));
+          }
         } else if (Math.abs(dy) >= 48) {
           factor = dy < 0 ? 1.18 : (1 / 1.18);
         } else {
-          factor = Math.min(1.22, Math.max(0.82, Math.exp(-dy * 0.0038)));
+          // Smooth 2-finger laptop touchpad scroll over the breadboard/schematic
+          factor = Math.min(1.25, Math.max(0.80, Math.exp(-dy * 0.0065)));
         }
 
-        var handled = dispatchZoomToCompose(factor, 0, 0, ev.clientX, ev.clientY);
+        var wx = (typeof ev.clientX === 'number' && (ev.clientX !== 0 || ev.clientY !== 0)) ? ev.clientX : lastPointerX;
+        var wy = (typeof ev.clientY === 'number' && (ev.clientX !== 0 || ev.clientY !== 0)) ? ev.clientY : lastPointerY;
+
+        // Explicit trackpad pinch (isPinchWheel) works anywhere on the bench even if the cursor sits over the console/toolbar!
+        var handled = dispatchZoomToCompose(factor, 0, 0, wx, wy, isPinchWheel);
         if (handled) {
           ev.preventDefault();
           ev.stopPropagation();

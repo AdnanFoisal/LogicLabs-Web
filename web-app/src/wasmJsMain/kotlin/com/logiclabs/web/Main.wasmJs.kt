@@ -24,10 +24,10 @@ private fun jsFetchArrayBuffer(url: String): Promise<org.khronos.webgl.ArrayBuff
     js("fetch(url).then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.arrayBuffer(); })")
 
 private fun jsInstallZoomBridge(
-    handler: (Float, Float, Float, Float, Float) -> Boolean
+    handler: (Float, Float, Float, Float, Float, Boolean) -> Boolean
 ): Unit = js("""
 (() => {
-  window.__logicLabsDispatchZoom = (z, dx, dy, rx, ry) => Boolean(handler(z, dx, dy, rx, ry));
+  window.__logicLabsDispatchZoom = (z, dx, dy, rx, ry, allowFallback) => Boolean(handler(z, dx, dy, rx, ry, Boolean(allowFallback)));
 })()
 """)
 
@@ -78,8 +78,8 @@ private suspend fun fetchFontBytes(url: String): ByteArray? = runCatching {
 
 @OptIn(ExperimentalComposeUiApi::class)
 fun main() {
-    jsInstallZoomBridge { z, dx, dy, rx, ry ->
-        ViewportZoomRegistry.dispatchFromRoot(z, dx, dy, rx, ry)
+    jsInstallZoomBridge { z, dx, dy, rx, ry, allowFallback ->
+        ViewportZoomRegistry.dispatchFromRoot(z, dx, dy, rx, ry, allowFallback)
     }
 
     val launchParams = WebLaunchParams.parse(window.location.search, window.location.hash)

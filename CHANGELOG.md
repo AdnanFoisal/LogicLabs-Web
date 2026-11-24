@@ -6,6 +6,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ---
 
+## [1.3.2] — 2026-11-24
+
+### Fixed — Universal Laptop Touchpad Pinch & Multi-Pointer Zoom
+- **Whole-Screen Laptop Trackpad Pinch (`ViewportZoomBridge` + `index.html`):**
+  - Enabled active-viewport fallback (`allowFallbackToActive`) for explicit two-finger laptop trackpad pinches (`Ctrl/Meta + Wheel`), Safari `GestureEvent`s, W3C multi-pointer pinches, and `Ctrl + +`/`-` keystrokes so pinching on a laptop touchpad always zooms the breadboard or Boolean schematic even when the mouse pointer is parked over the right-hand Trainer Console, top toolbar, or `(0, 0)`.
+  - Added `#logiclabs-root canvas { touch-action: none !important; }` so desktop browsers never intercept Precision Touchpad streams with `touch-action: auto`, added W3C `PointerEvent` multi-finger pinch tracking for Windows/Linux hybrid laptops, calibrated fractional Precision Touchpad `deltaY` gain (`Math.exp(-dy * 0.025)`), and routed Linux X11 `touchegg`/`libinput-gestures` `Ctrl +/-` pinch keystrokes directly to cursor-anchored zoom.
+
+---
+
 ## [1.3.1] — 2026-11-24
 
 ### Fixed — Narrow Mobile Browser Layout Polish (`< 600 dp`)

@@ -237,7 +237,7 @@ fun ToolRail(
                     text = if (isCompact) {
                         "PINCH OR +/− TO ZOOM · DOUBLE-TAP IC FOR PINOUT"
                     } else {
-                        "SCROLL / PINCH TO ZOOM · RIGHT-CLICK MENU · DOUBLE-CLICK IC · F1 KEYS"
+                        "2-FINGER SCROLL / PINCH TO ZOOM · RIGHT-CLICK MENU · DOUBLE-CLICK IC · F1 KEYS"
                     },
                     style = LogicLabsType.SwitchPlate,
                     color = TextTertiary,

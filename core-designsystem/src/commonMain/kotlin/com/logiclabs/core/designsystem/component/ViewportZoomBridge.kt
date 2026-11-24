@@ -51,14 +51,19 @@ object ViewportZoomRegistry {
 
     /**
      * Dispatches a zoom/pan delta located at `(rootXpx, rootYpx)` in root Compose canvas pixels.
-     * Returns `true` if an active, uncovered viewport handled the gesture.
+     *
+     * When [allowFallbackToActive] is `true` (used for explicit two-finger trackpad pinches,
+     * Safari `GestureEvent`s, and `Ctrl +/-` zoom), if the laptop pointer happens to sit over
+     * the toolbar or right-hand trainer console rather than directly inside the canvas bounds,
+     * the gesture still zooms the active uncovered viewport smoothly around a clamped pivot.
      */
     fun dispatchFromRoot(
         zoomFactor: Float,
         panDxPx: Float,
         panDyPx: Float,
         rootXpx: Float,
-        rootYpx: Float
+        rootYpx: Float,
+        allowFallbackToActive: Boolean = false
     ): Boolean {
         val pt = Offset(rootXpx, rootYpx)
         for (i in entries.lastIndex downTo 0) {
@@ -74,6 +79,19 @@ object ViewportZoomRegistry {
                     rootYpx - b.top
                 )
                 return true
+            }
+        }
+        if (allowFallbackToActive) {
+            for (i in entries.lastIndex downTo 0) {
+                val e = entries[i]
+                if (!e.enabled) continue
+                val b = e.boundsInRoot
+                if (b.width > 1f && b.height > 1f) {
+                    val clampedX = if (rootXpx in b.left..b.right) rootXpx - b.left else b.width * 0.5f
+                    val clampedY = if (rootYpx in b.top..b.bottom) rootYpx - b.top else b.height * 0.5f
+                    e.onZoomPan(zoomFactor, panDxPx, panDyPx, clampedX, clampedY)
+                    return true
+                }
             }
         }
         return false
