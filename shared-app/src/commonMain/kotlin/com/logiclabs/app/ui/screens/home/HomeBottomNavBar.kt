@@ -387,7 +387,7 @@ fun DesktopHomeSidebar(
                     fontSize = 9.sp
                 )
                 Text(
-                    text = "v1.3.0 · ${appPlatform.platformEditionLabel}",
+                    text = "v1.3.1 · ${appPlatform.platformEditionLabel}",
                     style = LogicLabsType.TechnicalXs,
                     color = TextTertiary,
                     fontSize = 9.sp

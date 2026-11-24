@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -69,12 +70,13 @@ fun IcPinoutInspectorSheet(
             titleIcon = LogicIcons.Chip,
             onDismiss = onDismiss
         ) {
-            Box(
+            BoxWithConstraints(
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f, fill = false)
                     .keyboardPageScroll(listState)
             ) {
+                val twoColumns = maxWidth >= 600.dp
                 LazyColumn(
                     state = listState,
                     modifier = Modifier
@@ -93,14 +95,16 @@ fun IcPinoutInspectorSheet(
                     item {
                         InternalSchematicCard(
                             partNumber = model.partNumber,
-                            pins = model.pins
+                            pins = model.pins,
+                            twoColumns = twoColumns
                         )
                     }
 
                     item {
                         PinoutTableCard(
                             pinCount = model.pinCount,
-                            pins = model.pins
+                            pins = model.pins,
+                            twoColumns = twoColumns
                         )
                     }
                 }
@@ -151,7 +155,8 @@ private fun PhysicalDIPGraphic(
 @Composable
 private fun InternalSchematicCard(
     partNumber: String,
-    pins: Map<Int, PinDefinition>
+    pins: Map<Int, PinDefinition>,
+    twoColumns: Boolean = true
 ) {
     Column(
         modifier = Modifier
@@ -179,9 +184,9 @@ private fun InternalSchematicCard(
                 color = TextSecondary
             )
         } else {
-            // 2-column compact desktop grid for internal gates
+            val rows = if (twoColumns) gates.chunked(2) else gates.map { listOf(it) }
             Column(verticalArrangement = Arrangement.spacedBy(Dimens.Space2)) {
-                gates.chunked(2).forEach { pair ->
+                rows.forEach { pair ->
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(Dimens.Space2)
@@ -214,7 +219,8 @@ private fun InternalSchematicCard(
                                             text = mapping.expression,
                                             style = LogicLabsType.TechnicalXs,
                                             color = TextSecondary,
-                                            maxLines = 1
+                                            maxLines = 1,
+                                            softWrap = false
                                         )
                                     }
                                 }
@@ -238,7 +244,7 @@ private fun InternalSchematicCard(
                                 }
                             }
                         }
-                        if (pair.size == 1) Spacer(Modifier.weight(1f))
+                        if (twoColumns && pair.size == 1) Spacer(Modifier.weight(1f))
                     }
                 }
             }
@@ -246,11 +252,12 @@ private fun InternalSchematicCard(
     }
 }
 
-/** 2-Column Physical-Side Pinout Breakdown Table (Pins 1..N/2 left, Pins N/2+1..N right). */
+/** Physical-Side Pinout Breakdown Table (2-column on desktop >=600dp, stacked 1-column on mobile). */
 @Composable
 private fun PinoutTableCard(
     pinCount: Int,
-    pins: Map<Int, PinDefinition>
+    pins: Map<Int, PinDefinition>,
+    twoColumns: Boolean = true
 ) {
     val half = (pinCount + 1) / 2
     Column(
@@ -268,20 +275,38 @@ private fun PinoutTableCard(
         )
         Spacer(Modifier.height(Dimens.Space2))
 
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(Dimens.Space2)
-        ) {
-            PinSideColumn(
-                pinNumbers = (1..half).toList(),
-                pins = pins,
-                modifier = Modifier.weight(1f)
-            )
-            PinSideColumn(
-                pinNumbers = ((half + 1)..pinCount).toList(),
-                pins = pins,
-                modifier = Modifier.weight(1f)
-            )
+        if (twoColumns) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(Dimens.Space2)
+            ) {
+                PinSideColumn(
+                    pinNumbers = (1..half).toList(),
+                    pins = pins,
+                    modifier = Modifier.weight(1f)
+                )
+                PinSideColumn(
+                    pinNumbers = ((half + 1)..pinCount).toList(),
+                    pins = pins,
+                    modifier = Modifier.weight(1f)
+                )
+            }
+        } else {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(Dimens.Space2)
+            ) {
+                PinSideColumn(
+                    pinNumbers = (1..half).toList(),
+                    pins = pins,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                PinSideColumn(
+                    pinNumbers = ((half + 1)..pinCount).toList(),
+                    pins = pins,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
         }
     }
 }

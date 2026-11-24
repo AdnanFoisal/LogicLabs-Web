@@ -8,6 +8,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -30,6 +31,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -59,6 +61,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.logiclabs.core.designsystem.canvas.DesktopTextPaint
@@ -389,6 +392,7 @@ private fun UnitSectionBanner(
 /**
  * Expandable Technical Accordion Card modeled directly from the reference app design.
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun TechnicalAccordionCard(
     group: ExperimentCatalog.Group,
@@ -409,11 +413,33 @@ private fun TechnicalAccordionCard(
     )
 
     val shape = RoundedCornerShape(10.dp)
-    // Theme tokens, not literals: the card chrome used to be hardcoded near-dark, so the
-    // coursework tab stayed black under the daylight CLEANROOM theme while the rest of
-    // the home rack went light.
     val cardBg = SurfaceCard
     val borderCol = if (isExpanded) AmberCore else SurfaceCardBorder
+
+    val openButton: @Composable () -> Unit = {
+        Box(
+            modifier = Modifier
+                .clip(RoundedCornerShape(6.dp))
+                .background(AmberCore.copy(alpha = 0.14f))
+                .border(Dimens.Hairline, AmberCore.copy(alpha = 0.6f), RoundedCornerShape(6.dp))
+                .desktopPointerHand()
+                .clickable(role = Role.Button) {
+                    Haptics.thud()
+                    onLaunch(activeLab.id)
+                }
+                .padding(horizontal = 10.dp, vertical = 4.dp)
+        ) {
+            Text(
+                text = "OPEN",
+                style = LogicLabsType.SwitchPlate,
+                color = AmberCore,
+                fontSize = 9.sp,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                softWrap = false
+            )
+        }
+    }
 
     Column(
         modifier = modifier
@@ -422,8 +448,8 @@ private fun TechnicalAccordionCard(
             .background(cardBg)
             .border(1.dp, borderCol, shape)
     ) {
-        // --- Collapsed Header ---
-        Row(
+        // --- Responsive Collapsed Header (2-row stacked on <620dp phones, single-row on >=620dp desktop) ---
+        BoxWithConstraints(
             modifier = Modifier
                 .fillMaxWidth()
                 .desktopPointerHand()
@@ -436,110 +462,217 @@ private fun TechnicalAccordionCard(
                         onToggleExpand()
                     }
                 )
-                .padding(horizontal = 14.dp, vertical = 10.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+                .padding(horizontal = 14.dp, vertical = 11.dp)
         ) {
-            Row(
-                modifier = Modifier.weight(1f),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Miniature Logic Gate ANSI Symbol
-                LogicGateGlyph(
-                    name = group.title,
-                    variationSubtitle = activeLab.subtitle,
-                    modifier = Modifier.size(32.dp, 24.dp)
-                )
-
-                Column {
-                    Text(
-                        text = group.title,
-                        style = LogicLabsType.TitleSm,
-                        color = TextPrimary,
-                        fontSize = 14.sp
-                    )
-                    Text(
-                        text = getTechnicalSubtitle(group.title, activeLab.subtitle),
-                        style = LogicLabsType.BodySm,
-                        color = TextSecondary,
-                        fontSize = 11.sp
-                    )
-                }
-            }
-
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                if (activeLab.targetChips.isNotEmpty()) {
-                    Text(
-                        text = activeLab.targetChips.joinToString(" / "),
-                        style = LogicLabsType.TechnicalXs,
-                        color = AccentCyan,
-                        fontSize = 9.sp,
-                        modifier = Modifier
-                            .background(AccentCyan.copy(alpha = 0.12f), RoundedCornerShape(4.dp))
-                            .border(Dimens.Hairline, AccentCyan.copy(alpha = 0.35f), RoundedCornerShape(4.dp))
-                            .padding(horizontal = 6.dp, vertical = 2.dp)
-                    )
-                }
-
-                if (group.hasVariations) {
-                    Text(
-                        text = "${group.variations.size} BUILDS",
-                        style = LogicLabsType.TechnicalXs,
-                        color = TextTertiary,
-                        fontSize = 9.sp,
-                        modifier = Modifier
-                            .background(ChassisBase, RoundedCornerShape(4.dp))
-                            .border(Dimens.Hairline, SurfaceCardBorder, RoundedCornerShape(4.dp))
-                            .padding(horizontal = 6.dp, vertical = 2.dp)
-                    )
-                }
-
-                if (isVerified) {
-                    Text(
-                        text = "VERIFIED",
-                        style = LogicLabsType.SwitchPlate,
-                        color = PhosphorCore,
-                        fontSize = 9.sp,
-                        modifier = Modifier
-                            .background(PhosphorCore.copy(alpha = 0.15f), RoundedCornerShape(4.dp))
-                            .padding(horizontal = 6.dp, vertical = 2.dp)
-                    )
-                }
-
-                // Quick one-click launch straight onto the breadboard
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(6.dp))
-                        .background(AmberCore.copy(alpha = 0.14f))
-                        .border(Dimens.Hairline, AmberCore.copy(alpha = 0.6f), RoundedCornerShape(6.dp))
-                        .desktopPointerHand()
-                        .clickable(role = Role.Button) {
-                            Haptics.thud()
-                            onLaunch(activeLab.id)
-                        }
-                        .padding(horizontal = 9.dp, vertical = 4.dp)
+            val isCompactCard = maxWidth < 600.dp
+            if (!isCompactCard) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = "OPEN",
-                        style = LogicLabsType.SwitchPlate,
-                        color = AmberCore,
-                        fontSize = 9.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
+                    Row(
+                        modifier = Modifier.weight(1f),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        LogicGateGlyph(
+                            name = group.title,
+                            variationSubtitle = activeLab.subtitle,
+                            modifier = Modifier.size(32.dp, 24.dp)
+                        )
 
-                Icon(
-                    imageVector = LogicIcons.ChevronRight,
-                    contentDescription = if (isExpanded) "Collapse" else "Expand",
-                    modifier = Modifier
-                        .size(16.dp)
-                        .rotate(rotationAngle + 90f),
-                    tint = TextSecondary
-                )
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = group.title,
+                                style = LogicLabsType.TitleSm,
+                                color = TextPrimary,
+                                fontSize = 14.sp,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Text(
+                                text = getTechnicalSubtitle(group.title, activeLab.subtitle),
+                                style = LogicLabsType.BodySm,
+                                color = TextSecondary,
+                                fontSize = 11.sp,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
+
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        if (activeLab.targetChips.isNotEmpty()) {
+                            val chipLabel = if (activeLab.targetChips.size <= 3) {
+                                activeLab.targetChips.joinToString(" / ")
+                            } else {
+                                activeLab.targetChips.take(3).joinToString(" / ") + " +${activeLab.targetChips.size - 3}"
+                            }
+                            Text(
+                                text = chipLabel,
+                                style = LogicLabsType.TechnicalXs,
+                                color = AccentCyan,
+                                fontSize = 9.sp,
+                                maxLines = 1,
+                                softWrap = false,
+                                modifier = Modifier
+                                    .background(AccentCyan.copy(alpha = 0.12f), RoundedCornerShape(4.dp))
+                                    .border(Dimens.Hairline, AccentCyan.copy(alpha = 0.35f), RoundedCornerShape(4.dp))
+                                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                            )
+                        }
+
+                        if (group.hasVariations) {
+                            Text(
+                                text = "${group.variations.size} BUILDS",
+                                style = LogicLabsType.TechnicalXs,
+                                color = TextTertiary,
+                                fontSize = 9.sp,
+                                maxLines = 1,
+                                softWrap = false,
+                                modifier = Modifier
+                                    .background(ChassisBase, RoundedCornerShape(4.dp))
+                                    .border(Dimens.Hairline, SurfaceCardBorder, RoundedCornerShape(4.dp))
+                                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                            )
+                        }
+
+                        if (isVerified) {
+                            Text(
+                                text = "VERIFIED",
+                                style = LogicLabsType.SwitchPlate,
+                                color = PhosphorCore,
+                                fontSize = 9.sp,
+                                maxLines = 1,
+                                softWrap = false,
+                                modifier = Modifier
+                                    .background(PhosphorCore.copy(alpha = 0.15f), RoundedCornerShape(4.dp))
+                                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                            )
+                        }
+
+                        openButton()
+
+                        Icon(
+                            imageVector = LogicIcons.ChevronRight,
+                            contentDescription = if (isExpanded) "Collapse" else "Expand",
+                            modifier = Modifier
+                                .size(16.dp)
+                                .rotate(rotationAngle + 90f),
+                            tint = TextSecondary
+                        )
+                    }
+                }
+            } else {
+                // Compact phone card header: full-width title on top, wrapping IC & status pills + OPEN button below
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        LogicGateGlyph(
+                            name = group.title,
+                            variationSubtitle = activeLab.subtitle,
+                            modifier = Modifier.size(30.dp, 22.dp)
+                        )
+
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = group.title,
+                                style = LogicLabsType.TitleSm,
+                                color = TextPrimary,
+                                fontSize = 14.sp,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Text(
+                                text = getTechnicalSubtitle(group.title, activeLab.subtitle),
+                                style = LogicLabsType.BodySm,
+                                color = TextSecondary,
+                                fontSize = 11.sp,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+
+                        Icon(
+                            imageVector = LogicIcons.ChevronRight,
+                            contentDescription = if (isExpanded) "Collapse" else "Expand",
+                            modifier = Modifier
+                                .size(16.dp)
+                                .rotate(rotationAngle + 90f),
+                            tint = TextSecondary
+                        )
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        FlowRow(
+                            modifier = Modifier
+                                .weight(1f)
+                                .padding(end = 8.dp),
+                            horizontalArrangement = Arrangement.spacedBy(5.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            activeLab.targetChips.forEach { chip ->
+                                Text(
+                                    text = chip,
+                                    style = LogicLabsType.TechnicalXs,
+                                    color = AccentCyan,
+                                    fontSize = 9.sp,
+                                    maxLines = 1,
+                                    softWrap = false,
+                                    modifier = Modifier
+                                        .background(AccentCyan.copy(alpha = 0.12f), RoundedCornerShape(4.dp))
+                                        .border(Dimens.Hairline, AccentCyan.copy(alpha = 0.35f), RoundedCornerShape(4.dp))
+                                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                                )
+                            }
+
+                            if (group.hasVariations) {
+                                Text(
+                                    text = "${group.variations.size} BUILDS",
+                                    style = LogicLabsType.TechnicalXs,
+                                    color = TextTertiary,
+                                    fontSize = 9.sp,
+                                    maxLines = 1,
+                                    softWrap = false,
+                                    modifier = Modifier
+                                        .background(ChassisBase, RoundedCornerShape(4.dp))
+                                        .border(Dimens.Hairline, SurfaceCardBorder, RoundedCornerShape(4.dp))
+                                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                                )
+                            }
+
+                            if (isVerified) {
+                                Text(
+                                    text = "VERIFIED",
+                                    style = LogicLabsType.SwitchPlate,
+                                    color = PhosphorCore,
+                                    fontSize = 9.sp,
+                                    maxLines = 1,
+                                    softWrap = false,
+                                    modifier = Modifier
+                                        .background(PhosphorCore.copy(alpha = 0.15f), RoundedCornerShape(4.dp))
+                                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                                )
+                            }
+                        }
+
+                        openButton()
+                    }
+                }
             }
         }
 
@@ -566,7 +699,6 @@ private fun TechnicalAccordionCard(
                             .background(SurfaceCardBorder)
                     )
 
-                    // Technical Definition
                     Text(
                         text = getTechnicalDescription(group.title, activeLab.subtitle),
                         style = LogicLabsType.BodySm,
@@ -575,8 +707,6 @@ private fun TechnicalAccordionCard(
                         lineHeight = 16.sp
                     )
 
-                    // Side-by-side ANSI Schematic (fixed aspect-ratio width so gates never stretch!)
-                    // + Truth Table on desktop panes
                     val schematicBox: @Composable (Modifier) -> Unit = { boxMod ->
                         Box(
                             modifier = boxMod
@@ -615,7 +745,6 @@ private fun TechnicalAccordionCard(
                         TruthTableSection(lab = activeLab)
                     }
 
-                    // Implementations / Variations (if multiple available)
                     if (group.hasVariations) {
                         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                             Text(
@@ -648,7 +777,9 @@ private fun TechnicalAccordionCard(
                                             text = variation.subtitle.ifEmpty { variation.title },
                                             style = LogicLabsType.SwitchPlate,
                                             color = textCol,
-                                            fontSize = 10.sp
+                                            fontSize = 10.sp,
+                                            maxLines = 1,
+                                            softWrap = false
                                         )
                                     }
                                 }
@@ -656,7 +787,6 @@ private fun TechnicalAccordionCard(
                         }
                     }
 
-                    // Crisp right-aligned Action Button (no stretched 1100px plank)
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.End
@@ -666,8 +796,7 @@ private fun TechnicalAccordionCard(
                                 Haptics.thud()
                                 onLaunch(activeLab.id)
                             },
-                            modifier = Modifier
-                                .widthIn(min = 240.dp)
+                            modifier = (if (sideBySide) Modifier.widthIn(min = 240.dp) else Modifier.fillMaxWidth())
                                 .height(40.dp)
                                 .desktopPointerHand(),
                             colors = ButtonDefaults.buttonColors(
@@ -689,7 +818,9 @@ private fun TechnicalAccordionCard(
                                     text = getDynamicButtonLabel(activeLab),
                                     style = LogicLabsType.SwitchPlate,
                                     fontWeight = FontWeight.Bold,
-                                    fontSize = 11.sp
+                                    fontSize = 11.sp,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
                                 )
                             }
                         }
@@ -716,85 +847,95 @@ private fun TruthTableSection(lab: LabExperiment) {
         val inputs = lab.inputLabels.ifEmpty { listOf("A", "B") }
         val outputs = lab.outputLabels.ifEmpty { listOf("Q") }
 
-        // The table sweeps at most four inputs (16 rows) so it stays readable. Anything
-        // beyond that is pinned LOW and called out beneath the table — the lab bench's own
-        // verifier sweeps the full 2^N input space.
         val sweptVars = inputs.size.coerceAtMost(4)
         val pinnedLabels = inputs.drop(sweptVars).map { it.substringBefore(" (") }
         val numRows = 1 shl sweptVars
+        val totalCols = (sweptVars + outputs.size).coerceAtLeast(1)
 
-        Column(
+        BoxWithConstraints(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(6.dp))
                 .border(1.dp, SurfaceCardBorder, RoundedCornerShape(6.dp))
         ) {
-            // Header Row — strip the "(SWn)/(LEDn)" suffixes so multi-column tables fit.
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(SurfaceRaised)
-                    .padding(vertical = 5.dp),
-                horizontalArrangement = Arrangement.SpaceAround
+            val minRequiredWidth = 34.dp * totalCols
+            val tableScroll = rememberScrollState()
+            val needsScroll = minRequiredWidth > maxWidth
+            val rowWidthMod = if (needsScroll) Modifier.width(minRequiredWidth) else Modifier.fillMaxWidth()
+
+            Column(
+                modifier = if (needsScroll) {
+                    Modifier.fillMaxWidth().horizontalScroll(tableScroll)
+                } else {
+                    Modifier.fillMaxWidth()
+                }
             ) {
-                inputs.take(sweptVars).forEach { inp ->
-                    Text(
-                        text = inp.substringBefore(" ("),
-                        style = LogicLabsType.SwitchPlate,
-                        color = AccentCyan,
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-                outputs.forEach { out ->
-                    Text(
-                        text = out.substringBefore(" ("),
-                        style = LogicLabsType.SwitchPlate,
-                        color = AmberCore,
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-            }
-
-            // Truth Table Rows
-            for (r in 0 until numRows) {
-                val inBits = (0 until sweptVars).map { (r shr (sweptVars - 1 - it)) and 1 }
-                // Always feed the expected function the lab's FULL input width: a 4+-input
-                // lambda indexes inputs[3] and beyond, so a truncated list would crash the
-                // card. Inputs the preview does not sweep are held LOW.
-                val fullInputs = (0 until inputs.size).map { i ->
-                    if (i < sweptVars) inBits[i] == 1 else false
-                }
-                val outBits = lab.expectedFunction(fullInputs).map { if (it) 1 else 0 }
-
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(if (r % 2 == 0) SurfaceCard else ChassisBase)
-                        .padding(vertical = 4.dp),
+                    modifier = rowWidthMod
+                        .background(SurfaceRaised)
+                        .padding(vertical = 5.dp, horizontal = 4.dp),
                     horizontalArrangement = Arrangement.SpaceAround
                 ) {
-                    inBits.forEach { bit ->
+                    inputs.take(sweptVars).forEach { inp ->
                         Text(
-                            text = "$bit",
+                            text = inp.substringBefore(" ("),
                             style = LogicLabsType.SwitchPlate,
-                            color = TextSecondary,
+                            color = AccentCyan,
                             fontSize = 10.sp,
-                            fontFamily = FontFamily.Monospace
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            softWrap = false
                         )
                     }
-                    // One column per declared output — a half adder shows SUM *and* CARRY,
-                    // a decoder shows all of its decoded lines.
-                    outBits.forEach { bit ->
+                    outputs.forEach { out ->
                         Text(
-                            text = "$bit",
+                            text = out.substringBefore(" ("),
                             style = LogicLabsType.SwitchPlate,
-                            color = if (bit == 1) AmberCore else TextTertiary,
+                            color = AmberCore,
                             fontSize = 10.sp,
-                            fontWeight = if (bit == 1) FontWeight.Bold else FontWeight.Normal,
-                            fontFamily = FontFamily.Monospace
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            softWrap = false
                         )
+                    }
+                }
+
+                for (r in 0 until numRows) {
+                    val inBits = (0 until sweptVars).map { (r shr (sweptVars - 1 - it)) and 1 }
+                    val fullInputs = (0 until inputs.size).map { i ->
+                        if (i < sweptVars) inBits[i] == 1 else false
+                    }
+                    val outBits = lab.expectedFunction(fullInputs).map { if (it) 1 else 0 }
+
+                    Row(
+                        modifier = rowWidthMod
+                            .background(if (r % 2 == 0) SurfaceCard else ChassisBase)
+                            .padding(vertical = 4.dp, horizontal = 4.dp),
+                        horizontalArrangement = Arrangement.SpaceAround
+                    ) {
+                        inBits.forEach { bit ->
+                            Text(
+                                text = "$bit",
+                                style = LogicLabsType.SwitchPlate,
+                                color = TextSecondary,
+                                fontSize = 10.sp,
+                                fontFamily = FontFamily.Monospace,
+                                maxLines = 1,
+                                softWrap = false
+                            )
+                        }
+                        outBits.forEach { bit ->
+                            Text(
+                                text = "$bit",
+                                style = LogicLabsType.SwitchPlate,
+                                color = if (bit == 1) AmberCore else TextTertiary,
+                                fontSize = 10.sp,
+                                fontWeight = if (bit == 1) FontWeight.Bold else FontWeight.Normal,
+                                fontFamily = FontFamily.Monospace,
+                                maxLines = 1,
+                                softWrap = false
+                            )
+                        }
                     }
                 }
             }

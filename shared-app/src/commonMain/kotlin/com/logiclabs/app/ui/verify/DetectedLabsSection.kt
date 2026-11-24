@@ -160,21 +160,24 @@ fun CandidateLabMeterCard(
 
         Spacer(Modifier.height(Dimens.Space1))
 
-        Row(
+        FlowRow(
             modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             Text(
                 text = "${candidate.matchingVectors}/${candidate.totalVectors} vectors (${candidate.functionalScorePercent}%)",
                 style = LogicLabsType.TechnicalXs,
-                color = TextTertiary
+                color = TextTertiary,
+                maxLines = 1,
+                softWrap = false,
+                modifier = Modifier.padding(end = 6.dp)
             )
 
             if (candidate.matchedIcs.isNotEmpty()) {
-                FlowRow(
+                Row(
                     horizontalArrangement = Arrangement.spacedBy(4.dp),
-                    verticalArrangement = Arrangement.Center
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     candidate.matchedIcs.forEach { ic ->
                         Box(
@@ -186,7 +189,9 @@ fun CandidateLabMeterCard(
                             Text(
                                 text = ic,
                                 style = LogicLabsType.TechnicalXs,
-                                color = accent
+                                color = accent,
+                                maxLines = 1,
+                                softWrap = false
                             )
                         }
                     }
@@ -226,7 +231,7 @@ fun CustomCircuitBanner(modifier: Modifier = Modifier) {
             )
         }
         Spacer(Modifier.width(Dimens.Space2))
-        Column {
+        Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = "CUSTOM EXPERIMENTAL CIRCUIT",
                 style = LogicLabsType.SwitchPlate,

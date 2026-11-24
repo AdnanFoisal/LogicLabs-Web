@@ -43,6 +43,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.logiclabs.core.bridge.catalog.ChipModel
@@ -389,7 +390,7 @@ fun IcReferenceTab(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Column {
+                        Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
                             Text(
                                 text = "SN${currentSpec.partNumber}N",
                                 style = LogicLabsType.TitleMd,
@@ -410,6 +411,8 @@ fun IcReferenceTab(
                             style = LogicLabsType.SwitchPlate,
                             color = AccentCyan,
                             fontSize = 10.sp,
+                            maxLines = 1,
+                            softWrap = false,
                             modifier = Modifier
                                 .background(AccentCyan.copy(alpha = 0.12f), RoundedCornerShape(4.dp))
                                 .padding(horizontal = 8.dp, vertical = 4.dp)
@@ -647,7 +650,10 @@ private fun GateMappingTile(mapping: GateMapping, modifier: Modifier = Modifier)
                 style = LogicLabsType.SwitchPlate,
                 color = AmberCore,
                 fontSize = 10.sp,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f).padding(end = 6.dp)
             )
             if (mapping.expression.isNotEmpty()) {
                 Text(
@@ -655,7 +661,9 @@ private fun GateMappingTile(mapping: GateMapping, modifier: Modifier = Modifier)
                     style = LogicLabsType.SwitchPlate,
                     color = TextSecondary,
                     fontSize = 9.sp,
-                    fontFamily = FontFamily.Monospace
+                    fontFamily = FontFamily.Monospace,
+                    maxLines = 1,
+                    softWrap = false
                 )
             }
         }

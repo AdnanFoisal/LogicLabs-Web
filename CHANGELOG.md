@@ -6,6 +6,17 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ---
 
+## [1.3.1] — 2026-11-24
+
+### Fixed — Narrow Mobile Browser Layout Polish (`< 600 dp`)
+- **Coursework Cards & Multi-Output Truth Tables (`CourseworkTab`):**
+  - Replaced the single-row unweighted badge layout in `TechnicalAccordionCard` with a responsive 2-row mobile header (`< 600 dp`) that gives experiment titles & subtitles full horizontal width on top and wraps individual `74xx` IC pills (`FlowRow`), `N BUILDS`, and `VERIFIED` badges cleanly alongside `OPEN` underneath — eliminating vertical single-character wrapping on multi-IC experiments (`2-Bit Magnitude Comparator`, `3-to-8 Line Decoder`, etc.).
+  - Made wide multi-output preview truth tables (`TruthTableSection`) horizontally scrollable on compact screens and made the expanded launch button full-width on mobile.
+- **74xx IC Reference & Pinout Inspector (`IcReferenceTab`, `IcPinoutInspectorSheet`, `DetectedLabsSection`):**
+  - Added bounded `weight(1f)` flex sizing to IC part headers & gate mapping rows, switched `IcPinoutInspectorSheet`'s internal gate grid and pinout breakdown table to a spacious single-column layout on mobile (`< 600 dp`), and added `?v=1.3.1` PWA asset cache-busting for instant browser updates on refresh.
+
+---
+
 ## [1.3.0] — 2026-11-23
 
 ### Fixed & Upgraded — Universal Multi-Device Zoom & Web Workstation Polish
